@@ -3,87 +3,124 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>生日星光生成器</title>
-  <meta name="description" content="输入出生日期，寻找生日那一刻出发、在未来生日附近抵达地球的恒星光。">
+  <title>Birthday Starlight</title>
+  <meta name="description" content="Find future birthday nights when light that left a nearby star around your birth moment reaches Earth.">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
   <canvas id="starscape" aria-hidden="true"></canvas>
 
-  <div class="app">
+  <div class="app-shell">
     <header class="site-header">
-      <div class="topbar">
-        <div>
-          <p class="eyebrow">Gaia DR3 nearby star archive</p>
-          <h1>生日星光生成器</h1>
-          <p class="subtitle">让一束在你出生时离开恒星的光，在未来某个生日夜抵达你的相机。</p>
+      <div class="header-inner">
+        <div class="brand-block">
+          <p class="kicker">Gaia DR3 nearby stars</p>
+          <h1>Birthday Starlight</h1>
+          <p class="subtitle">输入出生时刻和观测地点，寻找那束从恒星出发、在未来生日附近抵达地球的光。</p>
         </div>
-        <div class="catalog-status" id="catalogStatus">载入星表中</div>
+        <div class="catalog-card">
+          <span>Catalog</span>
+          <strong id="catalogStatus">载入星表中</strong>
+        </div>
       </div>
     </header>
 
-    <main class="layout">
-      <section class="control-panel" aria-labelledby="formTitle">
-        <div class="section-heading">
-          <p class="eyebrow">Input</p>
-          <h2 id="formTitle">你的生日光参数</h2>
+    <main class="workspace">
+      <section class="input-panel" aria-labelledby="formTitle">
+        <div class="panel-heading">
+          <p>Observation brief</p>
+          <h2 id="formTitle">生日与观测条件</h2>
         </div>
 
         <form id="birthForm" class="form-grid">
-          <label>
-            <span>出生日期</span>
-            <input id="birthDate" type="date" required>
-          </label>
-
-          <label>
-            <span>出生时间</span>
-            <input id="birthTime" type="time" value="12:00">
-          </label>
-
-          <label>
-            <span>出生/观测时区</span>
-            <select id="timeZoneOffset">
-              <option value="8" selected>UTC+8 中国时间</option>
-              <option value="9">UTC+9 日本/韩国</option>
-              <option value="0">UTC+0</option>
-              <option value="-5">UTC-5 美东标准时</option>
-              <option value="-8">UTC-8 美西标准时</option>
-            </select>
-          </label>
-
-          <label>
-            <span>观测地点</span>
-            <select id="locationPreset">
-              <option value="hefei" selected>合肥</option>
-              <option value="anqing">安庆</option>
-              <option value="beijing">北京</option>
-              <option value="shanghai">上海</option>
-              <option value="guangzhou">广州</option>
-              <option value="chengdu">成都</option>
-              <option value="custom">自定义坐标</option>
-            </select>
-          </label>
-
-          <div class="coord-row">
+          <div class="field-pair">
             <label>
-              <span>纬度</span>
-              <input id="latitude" type="number" step="0.0001" value="31.8206">
+              <span>出生日期</span>
+              <input id="birthDate" type="date" required>
             </label>
             <label>
-              <span>经度</span>
-              <input id="longitude" type="number" step="0.0001" value="117.2272">
+              <span>出生时间</span>
+              <input id="birthTime" type="time" value="12:00">
             </label>
           </div>
 
-          <label>
-            <span>设备档位</span>
-            <select id="equipment">
-              <option value="telephoto" selected>相机长焦/轻量赤道仪</option>
-              <option value="visual">肉眼/双筒优先</option>
-              <option value="tracker">小望远镜/堆栈拍摄</option>
-              <option value="deep">进阶民用设备</option>
-            </select>
-          </label>
+          <div class="field-pair">
+            <label>
+              <span>出生地时区</span>
+              <input id="birthTimeZone" list="timeZoneOptions" autocomplete="off" required>
+            </label>
+            <label>
+              <span>观测地时区</span>
+              <input id="observerTimeZone" list="timeZoneOptions" autocomplete="off" required>
+            </label>
+          </div>
+          <datalist id="timeZoneOptions"></datalist>
+
+          <div class="map-block">
+            <div class="map-toolbar">
+              <label>
+                <span>搜索观测地点</span>
+                <input id="placeSearch" type="search" placeholder="例如: Tokyo, Mauna Kea, 北京">
+              </label>
+              <button id="placeSearchButton" class="secondary-action" type="button">定位</button>
+            </div>
+            <div id="map" class="map" aria-label="选择观测地点的地图"></div>
+            <p class="field-note">点击地图或拖动标记选择观测点。页面不会自动读取你的定位；地名搜索使用 OpenStreetMap Nominatim。</p>
+          </div>
+
+          <div class="field-pair">
+            <label>
+              <span>纬度</span>
+              <input id="latitude" type="number" step="0.0001" value="34.0000">
+            </label>
+            <label>
+              <span>经度</span>
+              <input id="longitude" type="number" step="0.0001" value="108.0000">
+            </label>
+          </div>
+
+          <fieldset class="equipment-field">
+            <legend>设备档位</legend>
+            <div class="equipment-grid">
+              <label class="equipment-card">
+                <input type="radio" name="equipment" value="naked" checked>
+                <span>肉眼暗空</span>
+                <strong>G≤5.5</strong>
+                <em>低成本，难点是找暗场和避开月光。</em>
+              </label>
+              <label class="equipment-card">
+                <input type="radio" name="equipment" value="binoculars">
+                <span>双筒望远镜</span>
+                <strong>G≤8.0</strong>
+                <em>入门友好，适合 7x50 或 10x50。</em>
+              </label>
+              <label class="equipment-card">
+                <input type="radio" name="equipment" value="camera_fixed">
+                <span>相机固定三脚架</span>
+                <strong>G≤8.5</strong>
+                <em>短曝光多张堆栈，适合宽一点的视场。</em>
+              </label>
+              <label class="equipment-card">
+                <input type="radio" name="equipment" value="telephoto_tracker">
+                <span>长焦加星野赤道仪</span>
+                <strong>G≤11.0</strong>
+                <em>200-600mm，极轴和堆栈开始重要。</em>
+              </label>
+              <label class="equipment-card">
+                <input type="radio" name="equipment" value="small_scope">
+                <span>小望远镜深空入门</span>
+                <strong>G≤13.5</strong>
+                <em>GoTo、导星或短曝光堆栈，时间可更准。</em>
+              </label>
+              <label class="equipment-card">
+                <input type="radio" name="equipment" value="advanced">
+                <span>进阶民用设备</span>
+                <strong>G≤14.0</strong>
+                <em>更依赖天气、校准和后期，不需要专业台站。</em>
+              </label>
+            </div>
+          </fieldset>
 
           <label>
             <span>未来年份数</span>
@@ -92,24 +129,20 @@
 
           <button class="primary-action" type="submit">生成生日星光</button>
         </form>
-
-        <div class="method-note">
-          <p>星表预计算自 Gaia DR3，不会在访客打开页面时实时请求 Gaia。天气只适合在目标日期前约 16 天内查询；多年后的云量、透明度和月相需要临近再确认。</p>
-        </div>
       </section>
 
-      <section class="results-panel" aria-live="polite">
-        <div class="section-heading">
-          <p class="eyebrow">Timeline</p>
-          <h2>未来生日窗口</h2>
+      <section class="overview-panel" aria-live="polite">
+        <div class="panel-heading">
+          <p>Year overview</p>
+          <h2>年份总览</h2>
         </div>
         <div id="summary" class="summary-box">等待输入生日。</div>
-        <div id="timeline" class="timeline"></div>
+        <div id="yearGrid" class="year-grid"></div>
       </section>
 
-      <section class="detail-panel" aria-labelledby="detailTitle">
-        <div class="section-heading">
-          <p class="eyebrow">Target</p>
+      <section class="target-panel" aria-labelledby="detailTitle">
+        <div class="panel-heading">
+          <p>Selected target</p>
           <h2 id="detailTitle">候选恒星详情</h2>
         </div>
         <div id="candidateTabs" class="candidate-tabs"></div>
@@ -121,6 +154,7 @@
     </main>
   </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="assets/app.js"></script>
 </body>
 </html>

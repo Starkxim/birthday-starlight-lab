@@ -11,9 +11,12 @@ Birthday Starlight is a browser-only astronomy web app. Enter a birth date, time
 - Finds future birthday-year targets from a static Gaia DR3 nearby-star catalog.
 - Provides two candidates per year when available: best timing accuracy and easiest imaging target.
 - Estimates arrival time, distance uncertainty, apparent brightness, altitude, azimuth, and observing window.
+- Uses IANA time zones for birth and observing locations.
+- Lets users pick an observing coordinate on an OpenStreetMap map or enter coordinates manually.
+- Offers equipment levels from naked-eye dark-sky observing to advanced civilian imaging setups.
 - Runs fully in the browser with no account system, no backend, and no visitor data upload.
 - Includes a GitHub Actions workflow for publishing the static site to GitHub Pages.
-- Includes a Python script for rebuilding the star catalog from the ESA Gaia Archive.
+- Includes a Python script and manual workflow for rebuilding the star catalog from the ESA Gaia Archive.
 
 ## Quick Start
 
@@ -64,6 +67,8 @@ python scripts/build_catalog.py \
 
 The catalog builder uses only the Python standard library, so it can run locally or on GitHub Actions without additional dependencies.
 
+The catalog rebuild workflow is manual and uploads the rebuilt JSON as an artifact. It does not commit directly to `main`.
+
 ## Data Model
 
 The public site does not query Gaia for every visitor. Instead, the Gaia Archive is queried during preprocessing, and the result is stored as `data/star-catalog.json`.
@@ -90,13 +95,26 @@ This repository is ready for GitHub Pages. The workflow at `.github/workflows/pa
 
 For a public repository, GitHub Pages is available on GitHub Free. For a private repository, GitHub Pages availability depends on the GitHub plan.
 
+The repository is intended to be maintained through issues and pull requests. Direct changes to `main` should be protected through GitHub branch protection rules.
+
 ## Limitations
 
 - Weather cannot be forecast reliably years in advance. Always check cloud cover, transparency, moon phase, and local conditions shortly before observing.
-- Light pollution estimates are coarse city-level hints. A future version could use an offline light-pollution raster or a dedicated API.
+- Map search uses OpenStreetMap Nominatim and map tiles use OpenStreetMap. Users can avoid search by entering coordinates manually.
+- Light pollution is not computed from the map coordinate yet. A future version could use an offline light-pollution raster or a dedicated API.
 - Most star names are Gaia DR3 designations. A future version could add SIMBAD/HIP/common-name cross-matches.
-- Time zones are represented as numeric UTC offsets. A global production version should use IANA time zones.
+- Time zone conversion uses browser `Intl` support for IANA time zones. Very old browsers may need a manual fallback.
 - This is an educational and planning tool, not an astrometric authority.
+
+## Roadmap
+
+- Email or calendar reminders for selected future birthday targets.
+- Moon phase, twilight, and altitude-window overlays for each candidate.
+- Optional weather checks when the target date enters a reliable forecast window.
+- Offline light-pollution lookup from a compressed public raster.
+- SIMBAD, HIP, and common-name cross-matches for friendlier target names.
+- Shareable result links that encode only chosen settings, not personal accounts.
+- A pull-request based catalog update workflow that never writes directly to `main`.
 
 ## Contributing
 
@@ -136,9 +154,12 @@ English version: [English](#birthday-starlight)
 - 从静态 Gaia DR3 近邻恒星星表中寻找未来生日年份的目标星。
 - 每年尽量给出两类候选：时间最准、拍摄最稳。
 - 估算抵达时刻、距离不确定范围、亮度、高度角、方位角和推荐观测窗口。
+- 使用 IANA 时区分别表示出生地和观测地时区。
+- 可以在 OpenStreetMap 地图上选择观测坐标，也可以手动输入经纬度。
+- 设备档位从肉眼暗空到进阶民用拍摄设备，按亮度极限和操作难度分级。
 - 完全在浏览器中运行，没有账号系统、没有后端、不会上传访客输入。
 - 自带 GitHub Actions 工作流，可发布到 GitHub Pages。
-- 自带 Python 脚本，可从 ESA Gaia Archive 重建恒星星表。
+- 自带 Python 脚本和手动工作流，可从 ESA Gaia Archive 重建恒星星表。
 
 ## 快速开始
 
@@ -189,6 +210,8 @@ python scripts/build_catalog.py \
 
 星表构建脚本只使用 Python 标准库，因此可以在本地或 GitHub Actions 中直接运行。
 
+星表重建工作流需要手动触发，并把新的 JSON 作为 artifact 上传。它不会直接提交到 `main`。
+
 ## 数据模型
 
 公开网页不会在每次访问时实时查询 Gaia。Gaia Archive 只在预处理阶段查询一次，结果保存为 `data/star-catalog.json`。
@@ -215,13 +238,26 @@ distance_ly = 3261.563777 / parallax_mas
 
 公开仓库可以在 GitHub Free 中使用 GitHub Pages。私有仓库是否可用取决于 GitHub 账号计划。
 
+本仓库适合通过 issue 和 pull request 维护。`main` 分支应通过 GitHub branch protection 保护，避免直接推送。
+
 ## 限制
 
 - 天气无法提前多年可靠预测。实际观测前仍需检查云量、透明度、月相和本地天气。
-- 光污染目前是城市级粗略提示。后续可以接入离线光污染栅格或专用 API。
+- 地图搜索使用 OpenStreetMap Nominatim，地图瓦片使用 OpenStreetMap。用户也可以不搜索地点，直接手动输入坐标。
+- 当前还没有根据地图坐标计算光污染。后续可以接入离线光污染栅格或专用 API。
 - 恒星名称主要使用 Gaia DR3 designation。后续可以加入 SIMBAD、HIP 和常用名交叉匹配。
-- 时区目前用 UTC 数值偏移表示。全球化版本应使用 IANA 时区。
+- 时区换算依赖浏览器 `Intl` 对 IANA 时区的支持。非常旧的浏览器可能需要降级方案。
 - 本项目适合教育、计划和观测灵感，不应视为权威天体测量工具。
+
+## 未来路线
+
+- 让用户为某个未来生日目标设置邮件或日历提醒。
+- 为每个候选目标叠加月相、天文晨昏和高度窗口。
+- 当目标日期进入可靠预报窗口后，接入可选天气检查。
+- 使用压缩后的公开光污染栅格做离线查询。
+- 加入 SIMBAD、HIP 和常用名交叉匹配，让目标名称更友好。
+- 生成可分享结果链接，只编码用户选择，不需要账号。
+- 用 pull request 更新星表，避免任何工作流直接写入 `main`。
 
 ## 参与贡献
 

@@ -4,54 +4,77 @@ const YEAR_MS = DAY_MS * JULIAN_YEAR_DAYS;
 const DEG = Math.PI / 180;
 const RAD = 180 / Math.PI;
 
-const CITY_PRESETS = {
-  hefei: { name: "合肥", lat: 31.8206, lon: 117.2272, bortle: "约 Bortle 8，城区光污染强" },
-  anqing: { name: "安庆", lat: 30.5435, lon: 117.0638, bortle: "约 Bortle 5-6，郊外更好" },
-  beijing: { name: "北京", lat: 39.9042, lon: 116.4074, bortle: "约 Bortle 8-9，建议远郊" },
-  shanghai: { name: "上海", lat: 31.2304, lon: 121.4737, bortle: "约 Bortle 9，暗星难度高" },
-  guangzhou: { name: "广州", lat: 23.1291, lon: 113.2644, bortle: "约 Bortle 8-9，建议郊外" },
-  chengdu: { name: "成都", lat: 30.5728, lon: 104.0668, bortle: "约 Bortle 7-8，透明度常是关键" },
-  custom: { name: "自定义地点", lat: 31.8206, lon: 117.2272, bortle: "自定义坐标，光污染需临近查询" },
+const DEFAULT_LOCATION = {
+  name: "未命名观测点",
+  lat: 0,
+  lon: 0,
+  light: "未估算光污染，请结合本地光害地图确认。",
 };
 
 const EQUIPMENT = {
-  visual: {
-    label: "肉眼/双筒优先",
-    maxMag: 7.0,
-    easyMag: 5.8,
+  naked: {
+    label: "肉眼暗空",
+    maxMag: 5.5,
+    easyMag: 4.8,
+    minAlt: 35,
+    price: "0 元，但需要真正暗的天空",
+    skill: "入门，重点是暗适应和辨认星座",
+    note: "适合在 Bortle 1-3 暗空下尝试。城市里肉眼极限会显著变差，接近 G5 的目标并不稳。",
+  },
+  binoculars: {
+    label: "双筒望远镜",
+    maxMag: 8.0,
+    easyMag: 6.8,
+    minAlt: 30,
+    price: "约 300-1500 元",
+    skill: "入门到轻度练习，需要会按星图跳星",
+    note: "7x50 或 10x50 双筒可以覆盖较宽视场，适合先用亮星定位，再确认较暗目标。",
+  },
+  camera_fixed: {
+    label: "相机固定三脚架",
+    maxMag: 8.5,
+    easyMag: 7.2,
     minAlt: 28,
-    note: "优先亮星。城市里仍要避开月光和灯光，暗于 G6 的目标建议至少使用双筒或相机。",
+    price: "已有相机时成本较低",
+    skill: "需要会手动曝光、对焦和多张堆栈",
+    note: "使用广角到中焦短曝光，拍多张后堆栈。长焦固定三脚架会受地球自转拖线限制。",
   },
-  telephoto: {
-    label: "相机长焦/轻量赤道仪",
+  telephoto_tracker: {
+    label: "长焦加星野赤道仪",
     maxMag: 11.0,
-    easyMag: 8.2,
+    easyMag: 8.8,
     minAlt: 25,
-    note: "适合 300-600mm 镜头、稳定三脚架或轻量赤道仪，多张堆栈会明显降低难度。",
+    price: "约 3000-15000 元，取决于镜头和赤道仪",
+    skill: "中等，需要极轴、构图和堆栈处理",
+    note: "200-600mm 镜头加轻量赤道仪是长焦恒星拍摄的甜点位，时间候选可以放暗一些。",
   },
-  tracker: {
-    label: "小望远镜/堆栈拍摄",
+  small_scope: {
+    label: "小望远镜深空入门",
     maxMag: 13.5,
-    easyMag: 9.8,
+    easyMag: 10.2,
     minAlt: 23,
-    note: "允许更暗但时间更准的目标。建议赤道仪、导星或短曝光堆栈，并使用星图确认视场。",
+    price: "约 8000-30000 元",
+    skill: "进阶，需要 GoTo、导星或短曝光堆栈",
+    note: "允许更暗但时间更准的恒星。建议先在 Stellarium 或 Aladin 里确认视场和邻近亮星。",
   },
-  deep: {
+  advanced: {
     label: "进阶民用设备",
     maxMag: 14.0,
-    easyMag: 10.5,
+    easyMag: 11.0,
     minAlt: 22,
-    note: "接近当前星表亮度下限，适合熟悉极轴、堆栈、暗场和平场处理的拍摄者。",
+    price: "约 30000 元以上，仍属于民用设备范围",
+    skill: "进阶，需要稳定跟踪、校准帧和后期经验",
+    note: "接近当前星表亮度下限。真正瓶颈通常是透明度、月光、跟踪精度和后期信噪比。",
   },
 };
 
 const STAR_COLORS = {
-  "blue-white": "#bfd7ff",
-  white: "#f4f7ff",
-  "yellow-white": "#fff2b8",
-  orange: "#ffd08a",
-  red: "#ff9f87",
-  unknown: "#e6f3ff",
+  "blue-white": "#6e8fbe",
+  white: "#f2f4f0",
+  "yellow-white": "#e3c46f",
+  orange: "#bd7a45",
+  red: "#a65445",
+  unknown: "#dfe5dc",
 };
 
 const app = {
@@ -61,6 +84,8 @@ const app = {
   selectedIndex: 0,
   selectedKind: "precision",
   currentForm: null,
+  map: null,
+  marker: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -68,35 +93,123 @@ const $ = (id) => document.getElementById(id);
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
-  setDefaultBirthDate();
+  populateTimeZones();
+  setDefaultForm();
   bindControls();
+  initMap();
   drawStarscape();
   await loadCatalog();
   $("birthForm").dispatchEvent(new Event("submit", { cancelable: true }));
 }
 
-function setDefaultBirthDate() {
+function populateTimeZones() {
+  const fallback = ["UTC", "Asia/Shanghai", "Asia/Tokyo", "Europe/London", "Europe/Berlin", "America/New_York", "America/Los_Angeles", "Australia/Sydney"];
+  const zones = typeof Intl.supportedValuesOf === "function" ? Intl.supportedValuesOf("timeZone") : fallback;
+  $("timeZoneOptions").innerHTML = zones.map((zone) => `<option value="${escapeHTML(zone)}"></option>`).join("");
+}
+
+function setDefaultForm() {
+  const browserZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   $("birthDate").value = "1990-01-01";
   $("birthTime").value = "12:00";
+  $("birthTimeZone").value = browserZone;
+  $("observerTimeZone").value = browserZone;
+  $("latitude").value = DEFAULT_LOCATION.lat.toFixed(4);
+  $("longitude").value = DEFAULT_LOCATION.lon.toFixed(4);
 }
 
 function bindControls() {
-  $("locationPreset").addEventListener("change", () => {
-    const preset = CITY_PRESETS[$("locationPreset").value] || CITY_PRESETS.hefei;
-    $("latitude").value = preset.lat;
-    $("longitude").value = preset.lon;
-  });
-
   $("birthForm").addEventListener("submit", (event) => {
     event.preventDefault();
     if (!app.catalog) return;
-    const form = readForm();
-    app.currentForm = form;
-    app.results = computeResults(form);
-    app.selectedIndex = 0;
-    app.selectedKind = "precision";
-    renderResults();
+
+    try {
+      const form = readForm();
+      app.currentForm = form;
+      app.results = computeResults(form);
+      app.selectedIndex = 0;
+      app.selectedKind = "precision";
+      renderResults();
+    } catch (error) {
+      $("summary").innerHTML = `<span class="warning">${escapeHTML(error.message)}</span>`;
+      console.error(error);
+    }
   });
+
+  $("latitude").addEventListener("change", syncMarkerFromFields);
+  $("longitude").addEventListener("change", syncMarkerFromFields);
+  $("placeSearchButton").addEventListener("click", searchPlace);
+  $("placeSearch").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      searchPlace();
+    }
+  });
+}
+
+function initMap() {
+  if (!window.L || !$("map")) {
+    $("map").textContent = "地图资源没有载入。你仍然可以手动输入纬度和经度。";
+    return;
+  }
+
+  app.map = L.map("map", {
+    zoomControl: true,
+    attributionControl: true,
+  }).setView([DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lon], 2);
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 18,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  }).addTo(app.map);
+
+  app.marker = L.marker([DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lon], { draggable: true }).addTo(app.map);
+  app.marker.on("dragend", () => {
+    const pos = app.marker.getLatLng();
+    setLocation(pos.lat, pos.lng, "地图选点");
+  });
+  app.map.on("click", (event) => setLocation(event.latlng.lat, event.latlng.lng, "地图选点"));
+}
+
+function setLocation(lat, lon, name) {
+  $("latitude").value = Number(lat).toFixed(4);
+  $("longitude").value = Number(lon).toFixed(4);
+  $("placeSearch").value = name || "";
+  if (app.marker) app.marker.setLatLng([lat, lon]);
+  if (app.map) app.map.panTo([lat, lon], { animate: true });
+}
+
+function syncMarkerFromFields() {
+  const lat = Number($("latitude").value);
+  const lon = Number($("longitude").value);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+  if (app.marker) app.marker.setLatLng([lat, lon]);
+  if (app.map) app.map.panTo([lat, lon], { animate: true });
+}
+
+async function searchPlace() {
+  const query = $("placeSearch").value.trim();
+  if (!query) return;
+
+  $("placeSearchButton").disabled = true;
+  $("placeSearchButton").textContent = "查找中";
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const results = await response.json();
+    if (!results.length) throw new Error("没有找到这个地点，请换一个名称或手动输入坐标。");
+    const place = results[0];
+    const lat = Number(place.lat);
+    const lon = Number(place.lon);
+    setLocation(lat, lon, place.display_name);
+    if (app.map) app.map.setView([lat, lon], 9);
+  } catch (error) {
+    $("summary").innerHTML = `<span class="warning">${escapeHTML(error.message)}</span>`;
+  } finally {
+    $("placeSearchButton").disabled = false;
+    $("placeSearchButton").textContent = "定位";
+  }
 }
 
 async function loadCatalog() {
@@ -107,9 +220,9 @@ async function loadCatalog() {
     app.catalog = await response.json();
     app.stars = app.catalog.stars || [];
     const meta = app.catalog.meta || {};
-    status.textContent = `${(meta.count || app.stars.length).toLocaleString()} 颗星已载入`;
+    status.textContent = `${(meta.count || app.stars.length).toLocaleString()} stars`;
   } catch (error) {
-    status.textContent = "星表载入失败";
+    status.textContent = "Catalog failed";
     $("summary").innerHTML = `无法读取 <code>data/star-catalog.json</code>。请通过本地服务器或 GitHub Pages 打开页面。`;
     console.error(error);
   }
@@ -118,27 +231,36 @@ async function loadCatalog() {
 function readForm() {
   const [birthYear, birthMonth, birthDay] = $("birthDate").value.split("-").map(Number);
   const [birthHour, birthMinute] = ($("birthTime").value || "12:00").split(":").map(Number);
-  const offsetHours = Number($("timeZoneOffset").value);
-  const presetKey = $("locationPreset").value;
-  const preset = CITY_PRESETS[presetKey] || CITY_PRESETS.hefei;
+  const birthTimeZone = $("birthTimeZone").value.trim();
+  const observerTimeZone = $("observerTimeZone").value.trim();
+  if (!isValidTimeZone(birthTimeZone)) throw new Error("出生地时区无效，请使用类似 Asia/Shanghai 的 IANA 时区。");
+  if (!isValidTimeZone(observerTimeZone)) throw new Error("观测地时区无效，请使用类似 Asia/Shanghai 的 IANA 时区。");
+
   const lat = Number($("latitude").value);
   const lon = Number($("longitude").value);
-  const equipment = EQUIPMENT[$("equipment").value] || EQUIPMENT.telephoto;
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90) throw new Error("纬度必须在 -90 到 90 之间。");
+  if (!Number.isFinite(lon) || lon < -180 || lon > 180) throw new Error("经度必须在 -180 到 180 之间。");
+
+  const equipmentKey = document.querySelector('input[name="equipment"]:checked')?.value || "naked";
+  const equipment = EQUIPMENT[equipmentKey] || EQUIPMENT.naked;
   const horizon = clamp(Number($("horizon").value) || 20, 5, 50);
-  const birthMs = zonedDateMs(birthYear, birthMonth, birthDay, birthHour, birthMinute, offsetHours);
+  const birthMs = zonedDateMs(birthYear, birthMonth, birthDay, birthHour, birthMinute, birthTimeZone);
+  const placeName = $("placeSearch").value.trim() || DEFAULT_LOCATION.name;
+
   return {
     birthYear,
     birthMonth,
     birthDay,
     birthHour,
     birthMinute,
-    offsetHours,
+    birthTimeZone,
+    observerTimeZone,
     birthMs,
     location: {
-      name: presetKey === "custom" ? "自定义地点" : preset.name,
+      name: placeName,
       lat,
       lon,
-      bortle: presetKey === "custom" ? CITY_PRESETS.custom.bortle : preset.bortle,
+      light: DEFAULT_LOCATION.light,
     },
     equipment,
     horizon,
@@ -156,7 +278,7 @@ function computeResults(form) {
       anniversary.day,
       form.birthHour,
       form.birthMinute,
-      form.offsetHours,
+      form.birthTimeZone,
     );
     const targetAgeYears = (targetMs - form.birthMs) / YEAR_MS;
     years.push(computeYear(form, year, anniversary, targetMs, targetAgeYears));
@@ -175,7 +297,7 @@ function computeYear(form, year, anniversary, targetMs, targetAgeYears) {
       targetAgeYears,
       precision: null,
       bright: null,
-      status: `星表覆盖约 ${minDistance.toFixed(1)}-${maxDistance.toFixed(0)} 光年；这个生日窗口需要 ${targetAgeYears.toFixed(1)} 光年。`,
+      status: `星表覆盖约 ${minDistance.toFixed(1)} 到 ${maxDistance.toFixed(0)} 光年；这个生日窗口需要 ${targetAgeYears.toFixed(1)} 光年。`,
     };
   }
 
@@ -241,8 +363,7 @@ function selectBright(records, form) {
   const pool = easyPool.length ? easyPool : records;
   return pool
     .slice()
-    .sort((a, b) => brightScore(a, form) - brightScore(b, form))
-    [0] || null;
+    .sort((a, b) => brightScore(a, form) - brightScore(b, form))[0] || null;
 }
 
 function brightScore(record, form) {
@@ -288,7 +409,7 @@ function bestVisibility(star, form, anniversary) {
       anniversary.day + dayShift,
       0,
       0,
-      form.offsetHours,
+      form.observerTimeZone,
     );
     for (let minutes = 19 * 60; minutes <= 28 * 60; minutes += 30) {
       const sampleMs = baseMs + minutes * 60_000;
@@ -329,8 +450,8 @@ function gmstDeg(ms) {
 
 function nextBirthdayYear(form) {
   const now = Date.now();
-  const localNow = new Date(now + form.offsetHours * 3_600_000);
-  let year = localNow.getUTCFullYear();
+  const nowParts = getZonedParts(now, form.birthTimeZone);
+  let year = nowParts.year;
   const anniversary = anniversaryParts(year, form.birthMonth, form.birthDay);
   const thisYearMs = zonedDateMs(
     year,
@@ -338,7 +459,7 @@ function nextBirthdayYear(form) {
     anniversary.day,
     form.birthHour,
     form.birthMinute,
-    form.offsetHours,
+    form.birthTimeZone,
   );
   if (thisYearMs <= now) year += 1;
   return year;
@@ -355,22 +476,58 @@ function isLeapYear(year) {
   return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
 }
 
-function zonedDateMs(year, month, day, hour, minute, offsetHours) {
-  return Date.UTC(year, month - 1, day, hour, minute) - offsetHours * 3_600_000;
+function isValidTimeZone(timeZone) {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone }).format(new Date());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function zonedDateMs(year, month, day, hour, minute, timeZone) {
+  const targetUtc = Date.UTC(year, month - 1, day, hour, minute);
+  let utc = targetUtc;
+  for (let i = 0; i < 4; i += 1) {
+    const parts = getZonedParts(utc, timeZone);
+    const renderedUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute);
+    utc -= renderedUtc - targetUtc;
+  }
+  return utc;
+}
+
+function getZonedParts(ms, timeZone) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(ms));
+  const values = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, Number(part.value)]));
+  return {
+    year: values.year,
+    month: values.month,
+    day: values.day,
+    hour: values.hour,
+    minute: values.minute,
+  };
 }
 
 function renderResults() {
   const form = app.currentForm;
   const meta = app.catalog.meta || {};
   $("summary").innerHTML = [
-    `星表：${(meta.count || app.stars.length).toLocaleString()} 颗 Gaia DR3 近邻恒星，约 ${meta.maxDistanceLy || 150} 光年内，G≤${meta.maxGMag || 14}。`,
-    `观测地点：${form.location.name} (${form.location.lat.toFixed(3)}°, ${form.location.lon.toFixed(3)}°)，${form.location.bortle}。`,
-    `设备档位：${form.equipment.label}，时间候选上限 G≤${form.equipment.maxMag}，亮星候选优先 G≤${form.equipment.easyMag}。`,
+    `<strong>${(meta.count || app.stars.length).toLocaleString()} 颗 Gaia DR3 恒星</strong>，约 ${meta.maxDistanceLy || 150} 光年内，G≤${meta.maxGMag || 14}。`,
+    `观测点：${escapeHTML(form.location.name)} (${form.location.lat.toFixed(3)}°, ${form.location.lon.toFixed(3)}°)。${escapeHTML(form.location.light)}`,
+    `设备：${escapeHTML(form.equipment.label)}，候选上限 G≤${form.equipment.maxMag}，亮星优先 G≤${form.equipment.easyMag}。`,
   ].join("<br>");
 
-  const timeline = $("timeline");
-  timeline.innerHTML = app.results.map((result, index) => renderYearRow(result, index)).join("");
-  timeline.querySelectorAll(".year-button").forEach((button) => {
+  const grid = $("yearGrid");
+  grid.innerHTML = app.results.map((result, index) => renderYearCell(result, index)).join("");
+  grid.querySelectorAll(".year-cell").forEach((button) => {
     button.addEventListener("click", () => {
       app.selectedIndex = Number(button.dataset.index);
       app.selectedKind = "precision";
@@ -382,24 +539,23 @@ function renderResults() {
   renderDetail();
 }
 
-function renderYearRow(result, index) {
+function renderYearCell(result, index) {
   const active = index === app.selectedIndex ? " active" : "";
-  const precision = result.precision ? formatDelta(result.precision.deltaDays) : "无";
-  const bright = result.bright ? `${displayName(result.bright.star)} / G${result.bright.star.gMag.toFixed(1)}` : "无";
-  const dateLabel = `${result.anniversary.month}-${String(result.anniversary.day).padStart(2, "0")}`;
+  const precision = result.precision ? formatDelta(result.precision.deltaDays) : "无候选";
+  const brightMag = result.bright ? `G ${result.bright.star.gMag.toFixed(1)}` : "无";
+  const dateLabel = `${result.anniversary.month}/${String(result.anniversary.day).padStart(2, "0")}`;
+  const quality = result.precision || result.bright ? "available" : "empty";
   return `
-    <div class="year-row">
-      <button class="year-button${active}" type="button" data-index="${index}">
-        <div class="year-main">
-          <div class="year-number">${result.year}</div>
-          <div>
-            <div class="year-title">${dateLabel} 生日夜</div>
-            <div class="year-sub">目标距离 ${result.targetAgeYears.toFixed(3)} 光年 · 时间最准 ${precision} · 拍摄最稳 ${bright}</div>
-          </div>
-          <span class="pill">${result.precision || result.bright ? "可筛选" : "空窗"}</span>
-        </div>
-      </button>
-    </div>
+    <button class="year-cell ${quality}${active}" type="button" data-index="${index}">
+      <span class="year-cell-top">
+        <strong>${result.year}</strong>
+        <em>${dateLabel}</em>
+      </span>
+      <span class="year-cell-data">
+        <span>最准 ${escapeHTML(precision)}</span>
+        <span>最亮 ${escapeHTML(brightMag)}</span>
+      </span>
+    </button>
   `;
 }
 
@@ -417,7 +573,8 @@ function renderCandidateTabs() {
   tabs.innerHTML = items.map((item) => {
     const active = app.selectedKind === item.key ? " active" : "";
     const disabled = item.record ? "" : " disabled";
-    return `<button class="tab-button${active}" type="button" data-kind="${item.key}"${disabled}>${item.label}<br><span>${item.record ? displayName(item.record.star) : "暂无候选"}</span></button>`;
+    const name = item.record ? displayName(item.record.star) : "暂无候选";
+    return `<button class="tab-button${active}" type="button" data-kind="${item.key}"${disabled}><span>${item.label}</span><strong>${escapeHTML(name)}</strong></button>`;
   }).join("");
   tabs.querySelectorAll(".tab-button").forEach((button) => {
     button.addEventListener("click", () => {
@@ -438,7 +595,7 @@ function renderDetail() {
   }
   const record = result[app.selectedKind] || result.precision || result.bright;
   if (!record) {
-    detail.innerHTML = `<p class="empty-state">${result.status}</p>`;
+    detail.innerHTML = `<p class="empty-state">${escapeHTML(result.status)}</p>`;
     drawSkyChart(null);
     return;
   }
@@ -450,27 +607,32 @@ function renderDetail() {
   const weatherNote = weatherText(record.targetMs);
 
   detail.innerHTML = `
-    <div class="kind-label">${kindLabel}</div>
-    <h3 class="star-name">${displayName(star)}</h3>
+    <div class="target-label">${kindLabel}</div>
+    <h3 class="star-name">${escapeHTML(displayName(star))}</h3>
     <div class="metric-grid">
-      <div class="metric"><span>抵达时刻</span><strong>${formatZoned(record.arrivalMs, form.offsetHours)}</strong></div>
-      <div class="metric"><span>生日目标</span><strong>${formatZoned(record.targetMs, form.offsetHours)}</strong></div>
+      <div class="metric"><span>抵达时刻</span><strong>${formatZoned(record.arrivalMs, form.observerTimeZone)}</strong></div>
+      <div class="metric"><span>生日目标</span><strong>${formatZoned(record.targetMs, form.birthTimeZone)}</strong></div>
       <div class="metric"><span>时间偏差</span><strong>${formatDelta(record.deltaDays)}</strong></div>
-      <div class="metric"><span>距离范围</span><strong>${star.distanceMinLy.toFixed(3)}-${star.distanceMaxLy.toFixed(3)} 光年</strong></div>
-      <div class="metric"><span>亮度</span><strong>G ${star.gMag.toFixed(2)} · ${colorLabel(star.colorClass)}</strong></div>
-      <div class="metric"><span>最佳窗口</span><strong>${formatZoned(record.visibility.timeMs, form.offsetHours)} · 高度 ${record.visibility.alt.toFixed(0)}°</strong></div>
-      <div class="metric"><span>坐标</span><strong>RA ${star.ra.toFixed(5)}° · Dec ${star.dec.toFixed(5)}°</strong></div>
+      <div class="metric"><span>距离范围</span><strong>${star.distanceMinLy.toFixed(3)} 到 ${star.distanceMaxLy.toFixed(3)} 光年</strong></div>
+      <div class="metric"><span>亮度和颜色</span><strong>G ${star.gMag.toFixed(2)}，${colorLabel(star.colorClass)}</strong></div>
+      <div class="metric"><span>最佳窗口</span><strong>${formatZoned(record.visibility.timeMs, form.observerTimeZone)}，高度 ${record.visibility.alt.toFixed(0)}°</strong></div>
+      <div class="metric"><span>坐标</span><strong>RA ${star.ra.toFixed(5)}°，Dec ${star.dec.toFixed(5)}°</strong></div>
       <div class="metric"><span>方位</span><strong>${azLabel(record.visibility.az)} ${record.visibility.az.toFixed(0)}°</strong></div>
     </div>
+    <div class="equipment-note">
+      <strong>${escapeHTML(form.equipment.label)}</strong>
+      <span>${escapeHTML(form.equipment.price)}</span>
+      <span>${escapeHTML(form.equipment.skill)}</span>
+    </div>
     <ul class="note-list">
-      <li>${form.equipment.note}</li>
-      <li>${weatherNote}</li>
-      <li>视差不确定性对应抵达范围：${formatZoned(record.arrivalMinMs, form.offsetHours)} 到 ${formatZoned(record.arrivalMaxMs, form.offsetHours)}。</li>
-      <li>找星时建议先在 Stellarium 或 Aladin 中输入 Gaia source_id：${star.id}，再核对相机视场。</li>
+      <li>${escapeHTML(form.equipment.note)}</li>
+      <li>${escapeHTML(weatherNote)}</li>
+      <li>视差不确定性对应抵达范围：${formatZoned(record.arrivalMinMs, form.observerTimeZone)} 到 ${formatZoned(record.arrivalMaxMs, form.observerTimeZone)}。</li>
+      <li>找星时可在 Stellarium 或 Aladin 中输入 Gaia source_id：${escapeHTML(star.id)}，再核对相机视场。</li>
     </ul>
     <div class="link-row">
-      <a href="${simbadUrl}" target="_blank" rel="noreferrer">SIMBAD 坐标检索</a>
-      <a href="${aladinUrl}" target="_blank" rel="noreferrer">Aladin 巡天图</a>
+      <a href="${simbadUrl}" target="_blank" rel="noreferrer">SIMBAD</a>
+      <a href="${aladinUrl}" target="_blank" rel="noreferrer">Aladin</a>
       <a href="https://gea.esac.esa.int/archive/" target="_blank" rel="noreferrer">Gaia Archive</a>
     </div>
   `;
@@ -483,14 +645,14 @@ function drawSkyChart(record) {
   const w = canvas.width;
   const h = canvas.height;
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = "#03080d";
+  ctx.fillStyle = "#111613";
   ctx.fillRect(0, 0, w, h);
 
   const cx = w / 2;
   const cy = h / 2 + 12;
   const radius = Math.min(w, h) * 0.38;
 
-  ctx.strokeStyle = "rgba(151, 205, 255, 0.26)";
+  ctx.strokeStyle = "rgba(231, 237, 226, 0.22)";
   ctx.lineWidth = 1;
   [0.25, 0.5, 0.75, 1].forEach((scale) => {
     ctx.beginPath();
@@ -498,7 +660,7 @@ function drawSkyChart(record) {
     ctx.stroke();
   });
 
-  ctx.fillStyle = "rgba(239, 247, 255, 0.76)";
+  ctx.fillStyle = "rgba(231, 237, 226, 0.82)";
   ctx.font = "16px Segoe UI, sans-serif";
   ctx.textAlign = "center";
   ctx.fillText("N", cx, cy - radius - 16);
@@ -506,14 +668,14 @@ function drawSkyChart(record) {
   ctx.fillText("E", cx + radius + 22, cy + 5);
   ctx.fillText("W", cx - radius - 22, cy + 5);
 
-  ctx.fillStyle = "rgba(150, 169, 186, 0.86)";
+  ctx.fillStyle = "rgba(184, 195, 182, 0.88)";
   ctx.font = "13px Segoe UI, sans-serif";
   ctx.fillText("90°", cx, cy + 4);
   ctx.fillText("45°", cx, cy - radius * 0.5 - 6);
   ctx.fillText("0° horizon", cx, cy + radius + 14);
 
   if (!record) {
-    ctx.fillStyle = "rgba(150, 169, 186, 0.9)";
+    ctx.fillStyle = "rgba(184, 195, 182, 0.9)";
     ctx.fillText("等待目标", cx, cy);
     return;
   }
@@ -527,7 +689,7 @@ function drawSkyChart(record) {
 
   ctx.save();
   ctx.shadowColor = color;
-  ctx.shadowBlur = 20;
+  ctx.shadowBlur = 18;
   ctx.fillStyle = color;
   ctx.beginPath();
   ctx.arc(x, y, 7, 0, Math.PI * 2);
@@ -540,11 +702,11 @@ function drawSkyChart(record) {
   ctx.lineTo(x, y);
   ctx.stroke();
 
-  ctx.fillStyle = "#eff7ff";
+  ctx.fillStyle = "#f4f6f0";
   ctx.font = "14px Segoe UI, sans-serif";
   ctx.textAlign = x > cx ? "left" : "right";
   ctx.fillText(displayName(record.star), x + (x > cx ? 12 : -12), y - 10);
-  ctx.fillStyle = "rgba(150, 169, 186, 0.95)";
+  ctx.fillStyle = "rgba(231, 237, 226, 0.88)";
   ctx.fillText(`Alt ${record.visibility.alt.toFixed(0)}° · Az ${record.visibility.az.toFixed(0)}°`, x + (x > cx ? 12 : -12), y + 10);
 }
 
@@ -560,23 +722,24 @@ function drawStarscape() {
     canvas.style.width = `${window.innerWidth}px`;
     canvas.style.height = `${window.innerHeight}px`;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    stars = Array.from({ length: Math.min(220, Math.floor(window.innerWidth / 6)) }, () => ({
+    stars = Array.from({ length: Math.min(130, Math.floor(window.innerWidth / 9)) }, () => ({
       x: Math.random() * window.innerWidth,
       y: Math.random() * window.innerHeight,
-      r: Math.random() * 1.4 + 0.25,
-      phase: Math.random() * Math.PI * 2,
+      r: Math.random() * 1.1 + 0.2,
+      alpha: Math.random() * 0.22 + 0.08,
     }));
   }
 
-  function frame(time) {
+  function frame() {
     ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    ctx.fillStyle = "rgba(42, 67, 52, 0.05)";
     for (const star of stars) {
-      const pulse = 0.45 + Math.sin(time / 1200 + star.phase) * 0.25;
-      ctx.fillStyle = `rgba(207, 238, 255, ${pulse})`;
+      ctx.globalAlpha = star.alpha;
       ctx.beginPath();
       ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.globalAlpha = 1;
     requestAnimationFrame(frame);
   }
 
@@ -603,7 +766,7 @@ function colorLabel(colorClass) {
 function weatherText(targetMs) {
   const daysAway = (targetMs - Date.now()) / DAY_MS;
   if (daysAway >= 0 && daysAway <= 16) {
-    return "目标日期已进入常规天气预报窗口，可在拍摄前再查 Open-Meteo、云图、透明度和月相。";
+    return "目标日期已进入常规天气预报窗口，可在拍摄前再查云量、透明度、风和月相。";
   }
   return "目标日期距离现在超过常规可靠天气预报窗口，多年后的云量只能临近拍摄前再确认。";
 }
@@ -617,19 +780,27 @@ function formatDelta(days) {
   return `${direction} ${(abs / 30.4375).toFixed(1)} 个月`;
 }
 
-function formatZoned(ms, offsetHours) {
-  const date = new Date(ms + offsetHours * 3_600_000);
-  const y = date.getUTCFullYear();
-  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const d = String(date.getUTCDate()).padStart(2, "0");
-  const hh = String(date.getUTCHours()).padStart(2, "0");
-  const mm = String(date.getUTCMinutes()).padStart(2, "0");
-  return `${y}-${m}-${d} ${hh}:${mm} UTC${offsetHours >= 0 ? "+" : ""}${offsetHours}`;
+function formatZoned(ms, timeZone) {
+  const parts = getZonedParts(ms, timeZone);
+  return `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)} ${pad2(parts.hour)}:${pad2(parts.minute)} ${timeZone}`;
 }
 
 function azLabel(az) {
   const labels = ["北", "东北", "东", "东南", "南", "西南", "西", "西北"];
   return labels[Math.round(normalizeDeg(az) / 45) % 8];
+}
+
+function escapeHTML(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function pad2(value) {
+  return String(value).padStart(2, "0");
 }
 
 function clamp(value, min, max) {

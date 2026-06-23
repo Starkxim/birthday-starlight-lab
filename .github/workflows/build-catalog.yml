@@ -2,11 +2,9 @@ name: Build Gaia star catalog
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "23 3 1 */3 *"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build-catalog:
@@ -23,14 +21,8 @@ jobs:
       - name: Rebuild catalog from Gaia Archive
         run: python scripts/build_catalog.py --max-distance-ly 150 --max-g-mag 14 --min-parallax-over-error 20 --output data/star-catalog.json
 
-      - name: Commit updated catalog
-        run: |
-          if git diff --quiet -- data/star-catalog.json; then
-            echo "Catalog unchanged."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/star-catalog.json
-          git commit -m "Update Gaia star catalog"
-          git push
+      - name: Upload rebuilt catalog
+        uses: actions/upload-artifact@v4
+        with:
+          name: star-catalog
+          path: data/star-catalog.json
