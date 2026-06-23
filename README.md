@@ -1,0 +1,249 @@
+# Birthday Starlight
+
+[![Deploy static site](https://github.com/Starkxim/birthday-starlight-lab/actions/workflows/pages.yml/badge.svg)](https://github.com/Starkxim/birthday-starlight-lab/actions/workflows/pages.yml)
+
+Birthday Starlight is a browser-only astronomy web app. Enter a birth date, time, observing location, and equipment level; the app searches a precomputed Gaia DR3 nearby-star catalog for stars whose light left around the birth moment and arrives near future birthdays.
+
+中文说明见下方：[中文](#生日星光)
+
+## Features
+
+- Finds future birthday-year targets from a static Gaia DR3 nearby-star catalog.
+- Provides two candidates per year when available: best timing accuracy and easiest imaging target.
+- Estimates arrival time, distance uncertainty, apparent brightness, altitude, azimuth, and observing window.
+- Runs fully in the browser with no account system, no backend, and no visitor data upload.
+- Includes a GitHub Actions workflow for publishing the static site to GitHub Pages.
+- Includes a Python script for rebuilding the star catalog from the ESA Gaia Archive.
+
+## Quick Start
+
+Clone the repository and serve it with any static file server:
+
+```bash
+git clone https://github.com/Starkxim/birthday-starlight-lab.git
+cd birthday-starlight-lab
+python -m http.server 8787 --bind 127.0.0.1
+```
+
+Open:
+
+```text
+http://127.0.0.1:8787/
+```
+
+Do not open `index.html` directly from the file system. Modern browsers may block `fetch()` requests for the local catalog file.
+
+## Development
+
+The app is intentionally small and framework-free:
+
+```text
+index.html                 Page structure
+assets/styles.css          Visual design and responsive layout
+assets/app.js              Browser-side birthday-light calculations
+data/star-catalog.json     Precomputed Gaia DR3 nearby-star catalog
+scripts/build_catalog.py   Gaia Archive TAP catalog builder
+.github/workflows/         GitHub Pages and catalog rebuild workflows
+```
+
+Run a JavaScript syntax check:
+
+```bash
+node --check assets/app.js
+```
+
+Rebuild the catalog:
+
+```bash
+python scripts/build_catalog.py \
+  --max-distance-ly 150 \
+  --max-g-mag 14 \
+  --min-parallax-over-error 20 \
+  --output data/star-catalog.json
+```
+
+The catalog builder uses only the Python standard library, so it can run locally or on GitHub Actions without additional dependencies.
+
+## Data Model
+
+The public site does not query Gaia for every visitor. Instead, the Gaia Archive is queried during preprocessing, and the result is stored as `data/star-catalog.json`.
+
+Each catalog entry includes:
+
+- Gaia DR3 source identifier
+- Right ascension and declination
+- Parallax and parallax uncertainty
+- Estimated distance in light-years
+- Distance range implied by parallax uncertainty
+- Gaia G magnitude and BP/RP color
+- Proper motion when available
+
+Distance is computed as:
+
+```text
+distance_ly = 3261.563777 / parallax_mas
+```
+
+## Deployment
+
+This repository is ready for GitHub Pages. The workflow at `.github/workflows/pages.yml` publishes the static files using GitHub Actions.
+
+For a public repository, GitHub Pages is available on GitHub Free. For a private repository, GitHub Pages availability depends on the GitHub plan.
+
+## Limitations
+
+- Weather cannot be forecast reliably years in advance. Always check cloud cover, transparency, moon phase, and local conditions shortly before observing.
+- Light pollution estimates are coarse city-level hints. A future version could use an offline light-pollution raster or a dedicated API.
+- Most star names are Gaia DR3 designations. A future version could add SIMBAD/HIP/common-name cross-matches.
+- Time zones are represented as numeric UTC offsets. A global production version should use IANA time zones.
+- This is an educational and planning tool, not an astrometric authority.
+
+## Contributing
+
+Issues and pull requests are welcome. Useful areas include:
+
+- Better star names and cross-identifications
+- Improved equipment difficulty scoring
+- Offline light-pollution lookup
+- Moon phase and twilight calculations
+- More observing-location presets
+- Interface localization
+
+Please keep the project static-site friendly and avoid adding a backend unless the feature truly needs one.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
+
+## Acknowledgements
+
+- ESA Gaia mission and the Gaia Archive for Gaia DR3 astrometric and photometric data
+- CDS services such as SIMBAD and Aladin for astronomical identification and visualization tools
+- GitHub Pages and GitHub Actions for free static-site publishing infrastructure
+
+This project is not affiliated with or endorsed by ESA, CDS, or GitHub.
+
+---
+
+# 生日星光
+
+生日星光是一个纯浏览器运行的天文网页应用。输入出生日期、时间、观测地点和设备档位后，它会在预计算的 Gaia DR3 近邻恒星星表中寻找候选恒星：这些恒星在你出生那一刻发出的光，可能会在未来某个生日附近抵达地球。
+
+English version: [English](#birthday-starlight)
+
+## 功能
+
+- 从静态 Gaia DR3 近邻恒星星表中寻找未来生日年份的目标星。
+- 每年尽量给出两类候选：时间最准、拍摄最稳。
+- 估算抵达时刻、距离不确定范围、亮度、高度角、方位角和推荐观测窗口。
+- 完全在浏览器中运行，没有账号系统、没有后端、不会上传访客输入。
+- 自带 GitHub Actions 工作流，可发布到 GitHub Pages。
+- 自带 Python 脚本，可从 ESA Gaia Archive 重建恒星星表。
+
+## 快速开始
+
+克隆仓库并用任意静态文件服务器打开：
+
+```bash
+git clone https://github.com/Starkxim/birthday-starlight-lab.git
+cd birthday-starlight-lab
+python -m http.server 8787 --bind 127.0.0.1
+```
+
+打开：
+
+```text
+http://127.0.0.1:8787/
+```
+
+不要直接双击 `index.html`。浏览器可能会阻止页面读取本地的 `data/star-catalog.json`。
+
+## 开发指南
+
+项目刻意保持轻量，不依赖前端框架：
+
+```text
+index.html                 页面结构
+assets/styles.css          视觉设计和响应式布局
+assets/app.js              浏览器端生日光计算逻辑
+data/star-catalog.json     预计算的 Gaia DR3 近邻恒星星表
+scripts/build_catalog.py   Gaia Archive TAP 星表构建脚本
+.github/workflows/         GitHub Pages 与星表重建工作流
+```
+
+检查 JavaScript 语法：
+
+```bash
+node --check assets/app.js
+```
+
+重建星表：
+
+```bash
+python scripts/build_catalog.py \
+  --max-distance-ly 150 \
+  --max-g-mag 14 \
+  --min-parallax-over-error 20 \
+  --output data/star-catalog.json
+```
+
+星表构建脚本只使用 Python 标准库，因此可以在本地或 GitHub Actions 中直接运行。
+
+## 数据模型
+
+公开网页不会在每次访问时实时查询 Gaia。Gaia Archive 只在预处理阶段查询一次，结果保存为 `data/star-catalog.json`。
+
+每条恒星记录包含：
+
+- Gaia DR3 source id
+- 赤经和赤纬
+- 视差和视差不确定性
+- 估算光年距离
+- 由视差不确定性推导出的距离范围
+- Gaia G 星等和 BP/RP 颜色
+- 可用时的自行数据
+
+距离计算公式：
+
+```text
+distance_ly = 3261.563777 / parallax_mas
+```
+
+## 部署
+
+仓库已经可以直接部署到 GitHub Pages。`.github/workflows/pages.yml` 会通过 GitHub Actions 发布静态文件。
+
+公开仓库可以在 GitHub Free 中使用 GitHub Pages。私有仓库是否可用取决于 GitHub 账号计划。
+
+## 限制
+
+- 天气无法提前多年可靠预测。实际观测前仍需检查云量、透明度、月相和本地天气。
+- 光污染目前是城市级粗略提示。后续可以接入离线光污染栅格或专用 API。
+- 恒星名称主要使用 Gaia DR3 designation。后续可以加入 SIMBAD、HIP 和常用名交叉匹配。
+- 时区目前用 UTC 数值偏移表示。全球化版本应使用 IANA 时区。
+- 本项目适合教育、计划和观测灵感，不应视为权威天体测量工具。
+
+## 参与贡献
+
+欢迎提交 issue 和 pull request。比较适合改进的方向包括：
+
+- 更友好的恒星名称和交叉编号
+- 更准确的设备难度评分
+- 离线光污染查询
+- 月相和天文晨昏计算
+- 更多观测地点预设
+- 多语言界面
+
+请尽量保持项目对静态托管友好；除非功能确实需要，不建议引入后端服务。
+
+## 开源协议
+
+本项目使用 MIT License。详见 [LICENSE](LICENSE)。
+
+## 致谢
+
+- ESA Gaia mission 与 Gaia Archive 提供 Gaia DR3 天体测量和测光数据
+- CDS 的 SIMBAD、Aladin 等服务提供天体识别和可视化工具
+- GitHub Pages 与 GitHub Actions 提供静态网站发布基础设施
+
+本项目与 ESA、CDS、GitHub 无隶属或背书关系。
