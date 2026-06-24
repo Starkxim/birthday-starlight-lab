@@ -605,6 +605,7 @@ function renderDetail() {
   const simbadUrl = `https://simbad.u-strasbg.fr/simbad/sim-coo?Coord=${encodeURIComponent(`${star.ra} ${star.dec}`)}&Radius=5&Radius.unit=arcsec`;
   const aladinUrl = `https://aladin.cds.unistra.fr/AladinLite/?target=${encodeURIComponent(`${star.ra} ${star.dec}`)}&fov=0.1&survey=P%2FDSS2%2Fcolor`;
   const weatherNote = weatherText(record.targetMs);
+  const weatherPanel = renderWeatherPanel(record, form);
 
   detail.innerHTML = `
     <div class="target-label">${kindLabel}</div>
@@ -630,13 +631,192 @@ function renderDetail() {
       <li>视差不确定性对应抵达范围：${formatZoned(record.arrivalMinMs, form.observerTimeZone)} 到 ${formatZoned(record.arrivalMaxMs, form.observerTimeZone)}。</li>
       <li>找星时可在 Stellarium 或 Aladin 中输入 Gaia source_id：${escapeHTML(star.id)}，再核对相机视场。</li>
     </ul>
+    ${weatherPanel}
     <div class="link-row">
       <a href="${simbadUrl}" target="_blank" rel="noreferrer">SIMBAD</a>
       <a href="${aladinUrl}" target="_blank" rel="noreferrer">Aladin</a>
       <a href="https://gea.esac.esa.int/archive/" target="_blank" rel="noreferrer">Gaia Archive</a>
     </div>
   `;
+  bindWeatherControls(record, form);
   drawSkyChart(record);
+}
+
+function renderWeatherPanel(record, form) {
+  const availability = weatherAvailability(record.visibility.timeMs);
+  const button = availability.available
+    ? `<button id="weatherCheckButton" class="secondary-action weather-button" type="button">查询目标夜天气</button>`
+    : "";
+  return `
+    <section class="weather-card" aria-labelledby="weatherTitle">
+      <div class="weather-heading">
+        <div>
+          <span>Weather check</span>
+          <strong id="weatherTitle">目标夜天气</strong>
+        </div>
+        ${button}
+      </div>
+      <p id="weatherStatus" class="weather-status">${escapeHTML(availability.message)}</p>
+      <div id="weatherResult" class="weather-result"></div>
+    </section>
+  `;
+}
+
+function bindWeatherControls(record, form) {
+  const button = $("weatherCheckButton");
+  if (!button) return;
+  button.addEventListener("click", () => checkWeather(record, form));
+}
+
+async function checkWeather(record, form) {
+  const button = $("weatherCheckButton");
+  const status = $("weatherStatus");
+  const result = $("weatherResult");
+  button.disabled = true;
+  button.textContent = "查询中";
+  status.textContent = "正在从 Open-Meteo 获取逐小时预报。";
+  result.innerHTML = "";
+
+  try {
+    const response = await fetch(weatherApiUrl(record, form), { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const forecast = await response.json();
+    const summary = summarizeForecast(forecast, record.visibility.timeMs, form.observerTimeZone);
+    status.textContent = summary.summary;
+    result.innerHTML = renderWeatherResult(summary);
+  } catch (error) {
+    status.innerHTML = `<span class="warning">天气查询失败：${escapeHTML(error.message || "未知错误")}。</span>`;
+  } finally {
+    button.disabled = false;
+    button.textContent = "重新查询天气";
+  }
+}
+
+function weatherApiUrl(record, form) {
+  const params = new URLSearchParams({
+    latitude: form.location.lat.toFixed(4),
+    longitude: form.location.lon.toFixed(4),
+    hourly: [
+      "cloud_cover",
+      "visibility",
+      "precipitation_probability",
+      "wind_speed_10m",
+      "wind_gusts_10m",
+      "temperature_2m",
+      "relative_humidity_2m",
+    ].join(","),
+    forecast_days: "16",
+    timezone: "GMT",
+  });
+  return `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
+}
+
+function summarizeForecast(forecast, targetMs, timeZone) {
+  const hourly = forecast.hourly || {};
+  const times = hourly.time || [];
+  if (!times.length) throw new Error("预报数据为空");
+
+  const rows = times.map((time, index) => ({
+    ms: Date.parse(`${time}Z`),
+    cloud: numberAt(hourly.cloud_cover, index),
+    visibility: numberAt(hourly.visibility, index),
+    precip: numberAt(hourly.precipitation_probability, index),
+    wind: numberAt(hourly.wind_speed_10m, index),
+    gust: numberAt(hourly.wind_gusts_10m, index),
+    temp: numberAt(hourly.temperature_2m, index),
+    humidity: numberAt(hourly.relative_humidity_2m, index),
+  })).filter((row) => Number.isFinite(row.ms));
+
+  const nearby = rows.filter((row) => Math.abs(row.ms - targetMs) <= 2 * 60 * 60_000);
+  const sample = nearby.length ? averageWeatherRows(nearby) : nearestWeatherRow(rows, targetMs);
+  const grade = weatherGrade(sample);
+  const sampleTime = nearestWeatherRow(rows, targetMs).ms;
+
+  return {
+    ...sample,
+    grade,
+    summary: `${grade.label}。预报时间 ${formatZoned(sampleTime, timeZone)}，距离最佳窗口约 ${formatHours((sampleTime - targetMs) / 3_600_000)}。`,
+  };
+}
+
+function numberAt(values, index) {
+  const value = values?.[index];
+  return Number.isFinite(value) ? Number(value) : null;
+}
+
+function averageWeatherRows(rows) {
+  return {
+    cloud: average(rows, "cloud"),
+    visibility: average(rows, "visibility"),
+    precip: average(rows, "precip"),
+    wind: average(rows, "wind"),
+    gust: average(rows, "gust"),
+    temp: average(rows, "temp"),
+    humidity: average(rows, "humidity"),
+  };
+}
+
+function nearestWeatherRow(rows, targetMs) {
+  return rows.slice().sort((a, b) => Math.abs(a.ms - targetMs) - Math.abs(b.ms - targetMs))[0];
+}
+
+function average(rows, key) {
+  const values = rows.map((row) => row[key]).filter((value) => Number.isFinite(value));
+  if (!values.length) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function weatherGrade(weather) {
+  if (
+    metricAtLeast(weather.cloud, 75) ||
+    metricAtLeast(weather.precip, 45) ||
+    metricBelow(weather.visibility, 6000) ||
+    metricAtLeast(weather.gust, 40)
+  ) {
+    return { label: "不推荐拍摄", tone: "bad" };
+  }
+  if (
+    metricAtLeast(weather.cloud, 45) ||
+    metricAtLeast(weather.precip, 20) ||
+    metricBelow(weather.visibility, 12000) ||
+    metricAtLeast(weather.gust, 28)
+  ) {
+    return { label: "条件一般，需要临近复核", tone: "mixed" };
+  }
+  return { label: "条件较适合拍摄", tone: "good" };
+}
+
+function metricAtLeast(value, threshold) {
+  return Number.isFinite(value) && value >= threshold;
+}
+
+function metricBelow(value, threshold) {
+  return Number.isFinite(value) && value < threshold;
+}
+
+function renderWeatherResult(weather) {
+  const visibilityKm = Number.isFinite(weather.visibility) ? `${(weather.visibility / 1000).toFixed(1)} km` : "未知";
+  return `
+    <div class="weather-result-grid ${weather.grade.tone}">
+      <div><span>云量</span><strong>${formatWeatherValue(weather.cloud, "%")}</strong></div>
+      <div><span>降水概率</span><strong>${formatWeatherValue(weather.precip, "%")}</strong></div>
+      <div><span>能见度</span><strong>${visibilityKm}</strong></div>
+      <div><span>风速/阵风</span><strong>${formatWeatherValue(weather.wind, " km/h")} / ${formatWeatherValue(weather.gust, " km/h")}</strong></div>
+      <div><span>温度</span><strong>${formatWeatherValue(weather.temp, "°C")}</strong></div>
+      <div><span>湿度</span><strong>${formatWeatherValue(weather.humidity, "%")}</strong></div>
+    </div>
+  `;
+}
+
+function formatWeatherValue(value, unit) {
+  if (!Number.isFinite(value)) return "未知";
+  return `${Math.round(value)}${unit}`;
+}
+
+function formatHours(hours) {
+  const abs = Math.abs(hours);
+  if (abs < 0.15) return "0 小时";
+  return `${hours >= 0 ? "晚" : "早"} ${abs.toFixed(1)} 小时`;
 }
 
 function drawSkyChart(record) {
@@ -761,6 +941,26 @@ function colorLabel(colorClass) {
     red: "红色",
     unknown: "颜色未知",
   }[colorClass] || "颜色未知";
+}
+
+function weatherAvailability(observationMs) {
+  const daysAway = (observationMs - Date.now()) / DAY_MS;
+  if (daysAway < -1) {
+    return {
+      available: false,
+      message: "这个最佳窗口已经不在未来预报范围内。请以实际观测前的天气为准。",
+    };
+  }
+  if (daysAway > 16) {
+    return {
+      available: false,
+      message: "目标夜距离现在超过 16 天，天气预报还不可靠；临近拍摄前再查询。",
+    };
+  }
+  return {
+    available: true,
+    message: "目标夜已进入 16 天预报窗口，可查询云量、降水概率、能见度和风。",
+  };
 }
 
 function weatherText(targetMs) {

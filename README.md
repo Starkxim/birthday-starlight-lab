@@ -99,7 +99,7 @@ The repository is intended to be maintained through issues and pull requests. Di
 
 ## Limitations
 
-- Weather cannot be forecast reliably years in advance. Always check cloud cover, transparency, moon phase, and local conditions shortly before observing.
+- Weather cannot be forecast reliably years in advance. The app can optionally query Open-Meteo when a target night is within the 16-day forecast window, but observers should still recheck cloud cover, transparency, moon phase, and local conditions shortly before observing.
 - Map search uses OpenStreetMap Nominatim and map tiles use OpenStreetMap. Users can avoid search by entering coordinates manually.
 - Light pollution is not computed from the map coordinate yet. A future version could use an offline light-pollution raster or a dedicated API.
 - Most star names are Gaia DR3 designations. A future version could add SIMBAD/HIP/common-name cross-matches.
@@ -110,7 +110,7 @@ The repository is intended to be maintained through issues and pull requests. Di
 
 - Email or calendar reminders for selected future birthday targets.
 - Moon phase, twilight, and altitude-window overlays for each candidate.
-- Optional weather checks when the target date enters a reliable forecast window.
+- Weather quality scoring refinements, including astronomy-specific transparency and seeing sources where available.
 - Offline light-pollution lookup from a compressed public raster.
 - SIMBAD, HIP, and common-name cross-matches for friendlier target names.
 - Shareable result links that encode only chosen settings, not personal accounts.
@@ -137,9 +137,10 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE).
 
 - ESA Gaia mission and the Gaia Archive for Gaia DR3 astrometric and photometric data
 - CDS services such as SIMBAD and Aladin for astronomical identification and visualization tools
+- Open-Meteo for optional forecast-window weather data
 - GitHub Pages and GitHub Actions for free static-site publishing infrastructure
 
-This project is not affiliated with or endorsed by ESA, CDS, or GitHub.
+This project is not affiliated with or endorsed by ESA, CDS, Open-Meteo, or GitHub.
 
 ---
 
@@ -242,7 +243,7 @@ distance_ly = 3261.563777 / parallax_mas
 
 ## 限制
 
-- 天气无法提前多年可靠预测。实际观测前仍需检查云量、透明度、月相和本地天气。
+- 天气无法提前多年可靠预测。目标夜进入 16 天预报窗口后，页面可以选择性查询 Open-Meteo；实际观测前仍需再次检查云量、透明度、月相和本地天气。
 - 地图搜索使用 OpenStreetMap Nominatim，地图瓦片使用 OpenStreetMap。用户也可以不搜索地点，直接手动输入坐标。
 - 当前还没有根据地图坐标计算光污染。后续可以接入离线光污染栅格或专用 API。
 - 恒星名称主要使用 Gaia DR3 designation。后续可以加入 SIMBAD、HIP 和常用名交叉匹配。
@@ -253,7 +254,7 @@ distance_ly = 3261.563777 / parallax_mas
 
 - 让用户为某个未来生日目标设置邮件或日历提醒。
 - 为每个候选目标叠加月相、天文晨昏和高度窗口。
-- 当目标日期进入可靠预报窗口后，接入可选天气检查。
+- 改进天气质量评分，未来可加入更贴近天文观测的透明度和视宁度来源。
 - 使用压缩后的公开光污染栅格做离线查询。
 - 加入 SIMBAD、HIP 和常用名交叉匹配，让目标名称更友好。
 - 生成可分享结果链接，只编码用户选择，不需要账号。
@@ -280,6 +281,7 @@ distance_ly = 3261.563777 / parallax_mas
 
 - ESA Gaia mission 与 Gaia Archive 提供 Gaia DR3 天体测量和测光数据
 - CDS 的 SIMBAD、Aladin 等服务提供天体识别和可视化工具
+- Open-Meteo 提供可选的预报窗口天气数据
 - GitHub Pages 与 GitHub Actions 提供静态网站发布基础设施
 
-本项目与 ESA、CDS、GitHub 无隶属或背书关系。
+本项目与 ESA、CDS、Open-Meteo、GitHub 无隶属或背书关系。
