@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="assets/styles.css">
 </head>
-<body>
+<body data-theme="mission">
   <canvas id="starscape" aria-hidden="true"></canvas>
 
   <div class="app-shell">
@@ -19,9 +19,15 @@
           <h1>Birthday Starlight</h1>
           <p class="subtitle">输入出生时刻和观测地点，寻找那束从恒星出发、在未来生日附近抵达地球的光。</p>
         </div>
-        <div class="catalog-card">
-          <span>Catalog</span>
-          <strong id="catalogStatus">载入星表中</strong>
+        <div class="header-actions">
+          <div class="theme-switch" aria-label="切换页面样式">
+            <button type="button" data-theme-choice="mission" aria-pressed="true">Mission</button>
+            <button type="button" data-theme-choice="fieldbook" aria-pressed="false">Fieldbook</button>
+          </div>
+          <div class="catalog-card">
+            <span>Catalog</span>
+            <strong id="catalogStatus">载入星表中</strong>
+          </div>
         </div>
       </div>
     </header>
@@ -127,7 +133,11 @@
             <input id="horizon" type="number" min="5" max="50" value="20">
           </label>
 
-          <button class="primary-action" type="submit">生成生日星光</button>
+          <div class="form-actions">
+            <button class="primary-action" type="submit">生成生日星光</button>
+            <button id="shareButton" class="secondary-action" type="button">复制分享链接</button>
+          </div>
+          <p id="shareStatus" class="field-note" aria-live="polite"></p>
         </form>
       </section>
 

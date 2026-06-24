@@ -1,6 +1,7 @@
 const DAY_MS = 86_400_000;
 const JULIAN_YEAR_DAYS = 365.25;
 const YEAR_MS = DAY_MS * JULIAN_YEAR_DAYS;
+const SYNODIC_MONTH_DAYS = 29.53058867;
 const DEG = Math.PI / 180;
 const RAD = 180 / Math.PI;
 
@@ -79,6 +80,8 @@ const STAR_COLORS = {
 
 const app = {
   catalog: null,
+  crossIds: {},
+  crossMeta: null,
   stars: [],
   results: [],
   selectedIndex: 0,
@@ -93,8 +96,10 @@ const $ = (id) => document.getElementById(id);
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
+  initTheme();
   populateTimeZones();
   setDefaultForm();
+  applySharedState();
   bindControls();
   initMap();
   drawStarscape();
@@ -119,6 +124,10 @@ function setDefaultForm() {
 }
 
 function bindControls() {
+  document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+    button.addEventListener("click", () => setTheme(button.dataset.themeChoice));
+  });
+
   $("birthForm").addEventListener("submit", (event) => {
     event.preventDefault();
     if (!app.catalog) return;
@@ -129,6 +138,7 @@ function bindControls() {
       app.results = computeResults(form);
       app.selectedIndex = 0;
       app.selectedKind = "precision";
+      updateShareUrl(form);
       renderResults();
     } catch (error) {
       $("summary").innerHTML = `<span class="warning">${escapeHTML(error.message)}</span>`;
@@ -138,6 +148,7 @@ function bindControls() {
 
   $("latitude").addEventListener("change", syncMarkerFromFields);
   $("longitude").addEventListener("change", syncMarkerFromFields);
+  $("shareButton").addEventListener("click", copyShareLink);
   $("placeSearchButton").addEventListener("click", searchPlace);
   $("placeSearch").addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
@@ -147,28 +158,121 @@ function bindControls() {
   });
 }
 
+function initTheme() {
+  const saved = localStorage.getItem("birthday-starlight-theme");
+  setTheme(saved === "fieldbook" ? "fieldbook" : "mission");
+}
+
+function setTheme(theme) {
+  const nextTheme = theme === "fieldbook" ? "fieldbook" : "mission";
+  document.body.dataset.theme = nextTheme;
+  localStorage.setItem("birthday-starlight-theme", nextTheme);
+  document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.themeChoice === nextTheme));
+  });
+}
+
 function initMap() {
   if (!window.L || !$("map")) {
     $("map").textContent = "地图资源没有载入。你仍然可以手动输入纬度和经度。";
     return;
   }
 
+  const fieldLat = Number($("latitude").value);
+  const fieldLon = Number($("longitude").value);
+  const startLat = clamp(Number.isFinite(fieldLat) ? fieldLat : DEFAULT_LOCATION.lat, -90, 90);
+  const startLon = clamp(Number.isFinite(fieldLon) ? fieldLon : DEFAULT_LOCATION.lon, -180, 180);
   app.map = L.map("map", {
     zoomControl: true,
     attributionControl: true,
-  }).setView([DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lon], 2);
+  }).setView([startLat, startLon], 2);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 18,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
   }).addTo(app.map);
 
-  app.marker = L.marker([DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lon], { draggable: true }).addTo(app.map);
+  app.marker = L.marker([startLat, startLon], { draggable: true }).addTo(app.map);
   app.marker.on("dragend", () => {
     const pos = app.marker.getLatLng();
     setLocation(pos.lat, pos.lng, "地图选点");
   });
   app.map.on("click", (event) => setLocation(event.latlng.lat, event.latlng.lng, "地图选点"));
+}
+
+function applySharedState() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.size) return;
+
+  setInputFromParam(params, "birthDate", "birth");
+  setInputFromParam(params, "birthTime", "time");
+  setInputFromParam(params, "birthTimeZone", "birthTz");
+  setInputFromParam(params, "observerTimeZone", "obsTz");
+  setInputFromParam(params, "latitude", "lat");
+  setInputFromParam(params, "longitude", "lon");
+  setInputFromParam(params, "horizon", "years");
+  setInputFromParam(params, "placeSearch", "place");
+
+  const equipmentKey = params.get("equipment");
+  if (equipmentKey && EQUIPMENT[equipmentKey]) {
+    const option = document.querySelector(`input[name="equipment"][value="${equipmentKey}"]`);
+    if (option) option.checked = true;
+  }
+}
+
+function setInputFromParam(params, inputId, paramName) {
+  const value = params.get(paramName);
+  if (value !== null && value !== "") $(inputId).value = value;
+}
+
+async function copyShareLink() {
+  try {
+    const form = app.currentForm || readForm();
+    const url = updateShareUrl(form);
+    if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+    await navigator.clipboard.writeText(url);
+    setShareStatus("分享链接已复制。");
+  } catch (error) {
+    if (error.name === "NotAllowedError" || error.name === "SecurityError" || error.message === "Clipboard unavailable") {
+      const form = app.currentForm || readForm();
+      updateShareUrl(form);
+      setShareStatus("链接已更新到地址栏，可以手动复制。");
+      return;
+    }
+    setShareStatus(error.message || "无法生成分享链接。", true);
+  }
+}
+
+function updateShareUrl(form) {
+  const url = buildShareUrl(form);
+  window.history.replaceState(null, "", url);
+  return url;
+}
+
+function buildShareUrl(form) {
+  const params = new URLSearchParams();
+  params.set("birth", `${form.birthYear}-${pad2(form.birthMonth)}-${pad2(form.birthDay)}`);
+  params.set("time", `${pad2(form.birthHour)}:${pad2(form.birthMinute)}`);
+  params.set("birthTz", form.birthTimeZone);
+  params.set("obsTz", form.observerTimeZone);
+  params.set("lat", form.location.lat.toFixed(4));
+  params.set("lon", form.location.lon.toFixed(4));
+  params.set("equipment", equipmentKeyFor(form.equipment));
+  params.set("years", String(form.horizon));
+  if (form.location.name && form.location.name !== DEFAULT_LOCATION.name) {
+    params.set("place", form.location.name);
+  }
+  return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+}
+
+function equipmentKeyFor(equipment) {
+  return Object.entries(EQUIPMENT).find(([, value]) => value === equipment)?.[0] || "naked";
+}
+
+function setShareStatus(message, isWarning = false) {
+  const target = $("shareStatus");
+  target.textContent = message;
+  target.classList.toggle("warning", isWarning);
 }
 
 function setLocation(lat, lon, name) {
@@ -219,12 +323,29 @@ async function loadCatalog() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     app.catalog = await response.json();
     app.stars = app.catalog.stars || [];
+    await loadCrossIdentifications();
     const meta = app.catalog.meta || {};
-    status.textContent = `${(meta.count || app.stars.length).toLocaleString()} stars`;
+    const aliasCount = app.crossMeta?.matchedCount || Object.keys(app.crossIds).length;
+    status.textContent = `${(meta.count || app.stars.length).toLocaleString()} stars` +
+      (aliasCount ? ` · ${aliasCount.toLocaleString()} names` : "");
   } catch (error) {
     status.textContent = "Catalog failed";
     $("summary").innerHTML = `无法读取 <code>data/star-catalog.json</code>。请通过本地服务器或 GitHub Pages 打开页面。`;
     console.error(error);
+  }
+}
+
+async function loadCrossIdentifications() {
+  try {
+    const response = await fetch("data/star-crossids.json", { cache: "force-cache" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    app.crossIds = payload.aliases || {};
+    app.crossMeta = payload.meta || null;
+  } catch (error) {
+    app.crossIds = {};
+    app.crossMeta = null;
+    console.info("Optional star cross-identifications unavailable.", error);
   }
 }
 
@@ -442,8 +563,195 @@ function horizontalCoords(raDeg, decDeg, ms, latDeg, lonDeg) {
   };
 }
 
+function observingConditions(record, form) {
+  const stepMs = 10 * 60_000;
+  const bounds = observingNightBounds(record.visibility.timeMs, form.observerTimeZone);
+  const samples = [];
+
+  for (let ms = bounds.startMs; ms <= bounds.endMs; ms += stepMs) {
+    const sun = sunEquatorial(ms);
+    const moon = moonEquatorial(ms);
+    const target = horizontalCoords(record.star.ra, record.star.dec, ms, form.location.lat, form.location.lon);
+    const sunAltAz = horizontalCoords(sun.ra, sun.dec, ms, form.location.lat, form.location.lon);
+    const moonAltAz = horizontalCoords(moon.ra, moon.dec, ms, form.location.lat, form.location.lon);
+    samples.push({
+      ms,
+      targetAlt: target.alt,
+      sunAlt: sunAltAz.alt,
+      moonAlt: moonAltAz.alt,
+    });
+  }
+
+  const minAlt = form.equipment.minAlt;
+  const darkWindows = conditionWindows(samples, (sample) => sample.sunAlt <= -18, stepMs, bounds.endMs);
+  const targetWindows = conditionWindows(samples, (sample) => sample.targetAlt >= minAlt, stepMs, bounds.endMs);
+  const usableWindows = conditionWindows(
+    samples,
+    (sample) => sample.sunAlt <= -18 && sample.targetAlt >= minAlt,
+    stepMs,
+    bounds.endMs,
+  );
+  const bestUsable = samples
+    .filter((sample) => sample.sunAlt <= -18 && sample.targetAlt >= minAlt)
+    .sort((a, b) => b.targetAlt - a.targetAlt)[0];
+  const darkest = samples.slice().sort((a, b) => a.sunAlt - b.sunAlt)[0];
+  const moonSample = bestUsable || samples.reduce((best, sample) => (
+    Math.abs(sample.ms - record.visibility.timeMs) < Math.abs(best.ms - record.visibility.timeMs) ? sample : best
+  ), samples[0]);
+  const phase = moonPhase(moonSample.ms);
+  const moonText = `${phase.label}，照明约 ${phase.illuminationPercent}%` +
+    (moonSample.moonAlt >= 0 ? `，月亮高度 ${moonSample.moonAlt.toFixed(0)}°` : "，月亮在地平线下");
+
+  const usableWindowText = usableWindows.length
+    ? formatWindowList(usableWindows, form.observerTimeZone)
+    : "目标高度与天文夜无重叠";
+  const targetWindowText = targetWindows.length
+    ? formatWindowList(targetWindows, form.observerTimeZone)
+    : `目标没有高于 ${minAlt}° 的窗口`;
+  const darkWindowText = darkWindows.length
+    ? formatWindowList(darkWindows, form.observerTimeZone)
+    : `无天文夜，太阳最低 ${darkest.sunAlt.toFixed(0)}°`;
+
+  const summary = bestUsable
+    ? `观测夜 ${bounds.label}：天文夜 ${darkWindowText}；目标高于 ${minAlt}° 的窗口 ${targetWindowText}；暗夜内最佳约 ${formatClock(bestUsable.ms, form.observerTimeZone)}，目标高度 ${bestUsable.targetAlt.toFixed(0)}°，太阳高度 ${bestUsable.sunAlt.toFixed(0)}°。`
+    : `观测夜 ${bounds.label}：天文夜 ${darkWindowText}；目标高于 ${minAlt}° 的窗口 ${targetWindowText}；两者暂未重叠，可以改用相邻日期、降低最低高度或选择更亮候选。`;
+
+  return {
+    darkWindowText,
+    targetWindowText,
+    usableWindowText,
+    moonText,
+    summary,
+  };
+}
+
+function observingNightBounds(bestMs, timeZone) {
+  const parts = getZonedParts(bestMs, timeZone);
+  const eveningDate = parts.hour < 12
+    ? shiftLocalDate(parts.year, parts.month, parts.day, -1)
+    : { year: parts.year, month: parts.month, day: parts.day };
+  const startMs = zonedDateMs(eveningDate.year, eveningDate.month, eveningDate.day, 18, 0, timeZone);
+  const endMs = zonedDateMs(eveningDate.year, eveningDate.month, eveningDate.day + 1, 8, 0, timeZone);
+  return {
+    startMs,
+    endMs,
+    label: `${eveningDate.year}-${pad2(eveningDate.month)}-${pad2(eveningDate.day)}`,
+  };
+}
+
+function shiftLocalDate(year, month, day, offsetDays) {
+  const date = new Date(Date.UTC(year, month - 1, day + offsetDays, 12, 0, 0));
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+  };
+}
+
+function conditionWindows(samples, predicate, stepMs, endMs) {
+  const windows = [];
+  let startMs = null;
+  let lastMs = null;
+
+  for (const sample of samples) {
+    if (predicate(sample)) {
+      if (startMs === null) startMs = sample.ms;
+      lastMs = Math.min(sample.ms + stepMs, endMs);
+    } else if (startMs !== null) {
+      windows.push({ startMs, endMs: lastMs });
+      startMs = null;
+      lastMs = null;
+    }
+  }
+
+  if (startMs !== null) windows.push({ startMs, endMs: lastMs });
+  return windows;
+}
+
+function formatWindowList(windows, timeZone) {
+  return windows.map((window) => `${formatClock(window.startMs, timeZone)}-${formatClock(window.endMs, timeZone)}`).join("，");
+}
+
+function formatClock(ms, timeZone) {
+  const parts = getZonedParts(ms, timeZone);
+  return `${pad2(parts.hour)}:${pad2(parts.minute)}`;
+}
+
+function sunEquatorial(ms) {
+  const d = julianDay(ms) - 2451543.5;
+  const w = normalizeDeg(282.9404 + 4.70935e-5 * d);
+  const e = 0.016709 - 1.151e-9 * d;
+  const meanAnomaly = normalizeDeg(356.0470 + 0.9856002585 * d);
+  const eccentricAnomaly = meanAnomaly + e * RAD * Math.sin(meanAnomaly * DEG) * (1 + e * Math.cos(meanAnomaly * DEG));
+  const xv = Math.cos(eccentricAnomaly * DEG) - e;
+  const yv = Math.sqrt(1 - e * e) * Math.sin(eccentricAnomaly * DEG);
+  const trueAnomaly = Math.atan2(yv, xv) * RAD;
+  const lon = normalizeDeg(trueAnomaly + w);
+  const obliquity = (23.4393 - 3.563e-7 * d) * DEG;
+  const x = Math.cos(lon * DEG);
+  const y = Math.sin(lon * DEG) * Math.cos(obliquity);
+  const z = Math.sin(lon * DEG) * Math.sin(obliquity);
+
+  return {
+    ra: normalizeDeg(Math.atan2(y, x) * RAD),
+    dec: Math.atan2(z, Math.sqrt(x * x + y * y)) * RAD,
+  };
+}
+
+function moonEquatorial(ms) {
+  const d = julianDay(ms) - 2451543.5;
+  const node = normalizeDeg(125.1228 - 0.0529538083 * d) * DEG;
+  const inclination = 5.1454 * DEG;
+  const argPerigee = normalizeDeg(318.0634 + 0.1643573223 * d) * DEG;
+  const semiMajorAxis = 60.2666;
+  const eccentricity = 0.054900;
+  const meanAnomaly = normalizeDeg(115.3654 + 13.0649929509 * d);
+  const eccentricAnomaly = meanAnomaly + eccentricity * RAD * Math.sin(meanAnomaly * DEG) * (1 + eccentricity * Math.cos(meanAnomaly * DEG));
+  const xOrbital = semiMajorAxis * (Math.cos(eccentricAnomaly * DEG) - eccentricity);
+  const yOrbital = semiMajorAxis * Math.sqrt(1 - eccentricity * eccentricity) * Math.sin(eccentricAnomaly * DEG);
+  const distance = Math.sqrt(xOrbital * xOrbital + yOrbital * yOrbital);
+  const trueAnomaly = Math.atan2(yOrbital, xOrbital);
+  const lonArg = trueAnomaly + argPerigee;
+  const xEcliptic = distance * (Math.cos(node) * Math.cos(lonArg) - Math.sin(node) * Math.sin(lonArg) * Math.cos(inclination));
+  const yEcliptic = distance * (Math.sin(node) * Math.cos(lonArg) + Math.cos(node) * Math.sin(lonArg) * Math.cos(inclination));
+  const zEcliptic = distance * Math.sin(lonArg) * Math.sin(inclination);
+  const obliquity = (23.4393 - 3.563e-7 * d) * DEG;
+  const xEquatorial = xEcliptic;
+  const yEquatorial = yEcliptic * Math.cos(obliquity) - zEcliptic * Math.sin(obliquity);
+  const zEquatorial = yEcliptic * Math.sin(obliquity) + zEcliptic * Math.cos(obliquity);
+
+  return {
+    ra: normalizeDeg(Math.atan2(yEquatorial, xEquatorial) * RAD),
+    dec: Math.atan2(zEquatorial, Math.sqrt(xEquatorial * xEquatorial + yEquatorial * yEquatorial)) * RAD,
+  };
+}
+
+function moonPhase(ms) {
+  const age = positiveModulo(julianDay(ms) - 2451550.1, SYNODIC_MONTH_DAYS);
+  const angle = (age / SYNODIC_MONTH_DAYS) * Math.PI * 2;
+  const illuminationPercent = Math.round(((1 - Math.cos(angle)) / 2) * 100);
+  const label = moonPhaseLabel(age);
+  return { age, illuminationPercent, label };
+}
+
+function moonPhaseLabel(age) {
+  if (age < 1.84566) return "新月";
+  if (age < 5.53699) return "蛾眉月";
+  if (age < 9.22831) return "上弦前后";
+  if (age < 12.91963) return "盈凸月";
+  if (age < 16.61096) return "满月前后";
+  if (age < 20.30228) return "亏凸月";
+  if (age < 23.99361) return "下弦前后";
+  if (age < 27.68493) return "残月";
+  return "新月";
+}
+
+function julianDay(ms) {
+  return ms / DAY_MS + 2440587.5;
+}
+
 function gmstDeg(ms) {
-  const jd = ms / DAY_MS + 2440587.5;
+  const jd = julianDay(ms);
   const days = jd - 2451545.0;
   return normalizeDeg(280.46061837 + 360.98564736629 * days);
 }
@@ -605,10 +913,15 @@ function renderDetail() {
   const simbadUrl = `https://simbad.u-strasbg.fr/simbad/sim-coo?Coord=${encodeURIComponent(`${star.ra} ${star.dec}`)}&Radius=5&Radius.unit=arcsec`;
   const aladinUrl = `https://aladin.cds.unistra.fr/AladinLite/?target=${encodeURIComponent(`${star.ra} ${star.dec}`)}&fov=0.1&survey=P%2FDSS2%2Fcolor`;
   const weatherNote = weatherText(record.targetMs);
+  const weatherPanel = renderWeatherPanel(record, form);
+  const subtitle = secondaryName(star);
+  const identifiers = identifierSummary(star);
+  const conditions = observingConditions(record, form);
 
   detail.innerHTML = `
     <div class="target-label">${kindLabel}</div>
     <h3 class="star-name">${escapeHTML(displayName(star))}</h3>
+    ${subtitle ? `<p class="star-subtitle">${escapeHTML(subtitle)}</p>` : ""}
     <div class="metric-grid">
       <div class="metric"><span>抵达时刻</span><strong>${formatZoned(record.arrivalMs, form.observerTimeZone)}</strong></div>
       <div class="metric"><span>生日目标</span><strong>${formatZoned(record.targetMs, form.birthTimeZone)}</strong></div>
@@ -616,6 +929,9 @@ function renderDetail() {
       <div class="metric"><span>距离范围</span><strong>${star.distanceMinLy.toFixed(3)} 到 ${star.distanceMaxLy.toFixed(3)} 光年</strong></div>
       <div class="metric"><span>亮度和颜色</span><strong>G ${star.gMag.toFixed(2)}，${colorLabel(star.colorClass)}</strong></div>
       <div class="metric"><span>最佳窗口</span><strong>${formatZoned(record.visibility.timeMs, form.observerTimeZone)}，高度 ${record.visibility.alt.toFixed(0)}°</strong></div>
+      <div class="metric"><span>交叉标识</span><strong>${escapeHTML(identifiers)}</strong></div>
+      <div class="metric"><span>暗夜可拍</span><strong>${escapeHTML(conditions.usableWindowText)}</strong></div>
+      <div class="metric"><span>月相和月高</span><strong>${escapeHTML(conditions.moonText)}</strong></div>
       <div class="metric"><span>坐标</span><strong>RA ${star.ra.toFixed(5)}°，Dec ${star.dec.toFixed(5)}°</strong></div>
       <div class="metric"><span>方位</span><strong>${azLabel(record.visibility.az)} ${record.visibility.az.toFixed(0)}°</strong></div>
     </div>
@@ -626,10 +942,13 @@ function renderDetail() {
     </div>
     <ul class="note-list">
       <li>${escapeHTML(form.equipment.note)}</li>
+      <li>${escapeHTML(conditions.summary)}</li>
       <li>${escapeHTML(weatherNote)}</li>
       <li>视差不确定性对应抵达范围：${formatZoned(record.arrivalMinMs, form.observerTimeZone)} 到 ${formatZoned(record.arrivalMaxMs, form.observerTimeZone)}。</li>
       <li>找星时可在 Stellarium 或 Aladin 中输入 Gaia source_id：${escapeHTML(star.id)}，再核对相机视场。</li>
+      <li>太阳和月亮位置为浏览器端近似星历，用于初筛月光和暮光；正式拍摄前请再用 Stellarium 或天文历核对。</li>
     </ul>
+    ${weatherPanel}
     <div class="link-row">
       <a href="${simbadUrl}" target="_blank" rel="noreferrer">SIMBAD</a>
       <a href="${aladinUrl}" target="_blank" rel="noreferrer">Aladin</a>
@@ -637,8 +956,186 @@ function renderDetail() {
       <button id="calendarButton" type="button">日历提醒</button>
     </div>
   `;
+  bindWeatherControls(record, form);
   bindCalendarDownload(record, form);
   drawSkyChart(record);
+}
+
+function renderWeatherPanel(record, form) {
+  const availability = weatherAvailability(record.visibility.timeMs);
+  const button = availability.available
+    ? `<button id="weatherCheckButton" class="secondary-action weather-button" type="button">查询目标夜天气</button>`
+    : "";
+  return `
+    <section class="weather-card" aria-labelledby="weatherTitle">
+      <div class="weather-heading">
+        <div>
+          <span>Weather check</span>
+          <strong id="weatherTitle">目标夜天气</strong>
+        </div>
+        ${button}
+      </div>
+      <p id="weatherStatus" class="weather-status">${escapeHTML(availability.message)}</p>
+      <div id="weatherResult" class="weather-result"></div>
+    </section>
+  `;
+}
+
+function bindWeatherControls(record, form) {
+  const button = $("weatherCheckButton");
+  if (!button) return;
+  button.addEventListener("click", () => checkWeather(record, form));
+}
+
+async function checkWeather(record, form) {
+  const button = $("weatherCheckButton");
+  const status = $("weatherStatus");
+  const result = $("weatherResult");
+  button.disabled = true;
+  button.textContent = "查询中";
+  status.textContent = "正在从 Open-Meteo 获取逐小时预报。";
+  result.innerHTML = "";
+
+  try {
+    const response = await fetch(weatherApiUrl(record, form), { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const forecast = await response.json();
+    const summary = summarizeForecast(forecast, record.visibility.timeMs, form.observerTimeZone);
+    status.textContent = summary.summary;
+    result.innerHTML = renderWeatherResult(summary);
+  } catch (error) {
+    status.innerHTML = `<span class="warning">天气查询失败：${escapeHTML(error.message || "未知错误")}。</span>`;
+  } finally {
+    button.disabled = false;
+    button.textContent = "重新查询天气";
+  }
+}
+
+function weatherApiUrl(record, form) {
+  const params = new URLSearchParams({
+    latitude: form.location.lat.toFixed(4),
+    longitude: form.location.lon.toFixed(4),
+    hourly: [
+      "cloud_cover",
+      "visibility",
+      "precipitation_probability",
+      "wind_speed_10m",
+      "wind_gusts_10m",
+      "temperature_2m",
+      "relative_humidity_2m",
+    ].join(","),
+    forecast_days: "16",
+    timezone: "GMT",
+  });
+  return `https://api.open-meteo.com/v1/forecast?${params.toString()}`;
+}
+
+function summarizeForecast(forecast, targetMs, timeZone) {
+  const hourly = forecast.hourly || {};
+  const times = hourly.time || [];
+  if (!times.length) throw new Error("预报数据为空");
+
+  const rows = times.map((time, index) => ({
+    ms: Date.parse(`${time}Z`),
+    cloud: numberAt(hourly.cloud_cover, index),
+    visibility: numberAt(hourly.visibility, index),
+    precip: numberAt(hourly.precipitation_probability, index),
+    wind: numberAt(hourly.wind_speed_10m, index),
+    gust: numberAt(hourly.wind_gusts_10m, index),
+    temp: numberAt(hourly.temperature_2m, index),
+    humidity: numberAt(hourly.relative_humidity_2m, index),
+  })).filter((row) => Number.isFinite(row.ms));
+
+  const nearby = rows.filter((row) => Math.abs(row.ms - targetMs) <= 2 * 60 * 60_000);
+  const sample = nearby.length ? averageWeatherRows(nearby) : nearestWeatherRow(rows, targetMs);
+  const grade = weatherGrade(sample);
+  const sampleTime = nearestWeatherRow(rows, targetMs).ms;
+
+  return {
+    ...sample,
+    grade,
+    summary: `${grade.label}。预报时间 ${formatZoned(sampleTime, timeZone)}，距离最佳窗口约 ${formatHours((sampleTime - targetMs) / 3_600_000)}。`,
+  };
+}
+
+function numberAt(values, index) {
+  const value = values?.[index];
+  return Number.isFinite(value) ? Number(value) : null;
+}
+
+function averageWeatherRows(rows) {
+  return {
+    cloud: average(rows, "cloud"),
+    visibility: average(rows, "visibility"),
+    precip: average(rows, "precip"),
+    wind: average(rows, "wind"),
+    gust: average(rows, "gust"),
+    temp: average(rows, "temp"),
+    humidity: average(rows, "humidity"),
+  };
+}
+
+function nearestWeatherRow(rows, targetMs) {
+  return rows.slice().sort((a, b) => Math.abs(a.ms - targetMs) - Math.abs(b.ms - targetMs))[0];
+}
+
+function average(rows, key) {
+  const values = rows.map((row) => row[key]).filter((value) => Number.isFinite(value));
+  if (!values.length) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function weatherGrade(weather) {
+  if (
+    metricAtLeast(weather.cloud, 75) ||
+    metricAtLeast(weather.precip, 45) ||
+    metricBelow(weather.visibility, 6000) ||
+    metricAtLeast(weather.gust, 40)
+  ) {
+    return { label: "不推荐拍摄", tone: "bad" };
+  }
+  if (
+    metricAtLeast(weather.cloud, 45) ||
+    metricAtLeast(weather.precip, 20) ||
+    metricBelow(weather.visibility, 12000) ||
+    metricAtLeast(weather.gust, 28)
+  ) {
+    return { label: "条件一般，需要临近复核", tone: "mixed" };
+  }
+  return { label: "条件较适合拍摄", tone: "good" };
+}
+
+function metricAtLeast(value, threshold) {
+  return Number.isFinite(value) && value >= threshold;
+}
+
+function metricBelow(value, threshold) {
+  return Number.isFinite(value) && value < threshold;
+}
+
+function renderWeatherResult(weather) {
+  const visibilityKm = Number.isFinite(weather.visibility) ? `${(weather.visibility / 1000).toFixed(1)} km` : "未知";
+  return `
+    <div class="weather-result-grid ${weather.grade.tone}">
+      <div><span>云量</span><strong>${formatWeatherValue(weather.cloud, "%")}</strong></div>
+      <div><span>降水概率</span><strong>${formatWeatherValue(weather.precip, "%")}</strong></div>
+      <div><span>能见度</span><strong>${visibilityKm}</strong></div>
+      <div><span>风速/阵风</span><strong>${formatWeatherValue(weather.wind, " km/h")} / ${formatWeatherValue(weather.gust, " km/h")}</strong></div>
+      <div><span>温度</span><strong>${formatWeatherValue(weather.temp, "°C")}</strong></div>
+      <div><span>湿度</span><strong>${formatWeatherValue(weather.humidity, "%")}</strong></div>
+    </div>
+  `;
+}
+
+function formatWeatherValue(value, unit) {
+  if (!Number.isFinite(value)) return "未知";
+  return `${Math.round(value)}${unit}`;
+}
+
+function formatHours(hours) {
+  const abs = Math.abs(hours);
+  if (abs < 0.15) return "0 小时";
+  return `${hours >= 0 ? "晚" : "早"} ${abs.toFixed(1)} 小时`;
 }
 
 function bindCalendarDownload(record, form) {
@@ -830,7 +1327,46 @@ function drawStarscape() {
 }
 
 function displayName(star) {
+  const aliases = aliasFor(star);
+  if (aliases?.commonName) return aliases.commonName;
+  if (aliases?.bayerName) return aliases.bayerName;
+  if (aliases?.hip) return aliases.hip;
+  if (aliases?.hd) return aliases.hd;
+  if (aliases?.gj) return aliases.gj;
   return star.designation || `Gaia DR3 ${star.id}`;
+}
+
+function secondaryName(star) {
+  const aliases = aliasFor(star);
+  if (!aliases) return "";
+  const names = [
+    aliases.commonName ? aliases.bayerName : "",
+    aliases.simbadMainId && aliases.simbadMainId !== aliases.bayerDesignation ? aliases.simbadMainId : "",
+    star.designation || `Gaia DR3 ${star.id}`,
+  ].filter(Boolean);
+  return unique(names).join(" · ");
+}
+
+function identifierSummary(star) {
+  const aliases = aliasFor(star);
+  if (!aliases) return `Gaia DR3 ${star.id}`;
+  const identifiers = [
+    aliases.hip,
+    aliases.hd,
+    aliases.hr,
+    aliases.gj,
+    aliases.simbadMainId ? `SIMBAD ${aliases.simbadMainId}` : "",
+    `Gaia DR3 ${star.id}`,
+  ].filter(Boolean);
+  return unique(identifiers).join(" · ");
+}
+
+function aliasFor(star) {
+  return app.crossIds?.[star.id] || null;
+}
+
+function unique(values) {
+  return [...new Set(values)];
 }
 
 function colorLabel(colorClass) {
@@ -842,6 +1378,26 @@ function colorLabel(colorClass) {
     red: "红色",
     unknown: "颜色未知",
   }[colorClass] || "颜色未知";
+}
+
+function weatherAvailability(observationMs) {
+  const daysAway = (observationMs - Date.now()) / DAY_MS;
+  if (daysAway < -1) {
+    return {
+      available: false,
+      message: "这个最佳窗口已经不在未来预报范围内。请以实际观测前的天气为准。",
+    };
+  }
+  if (daysAway > 16) {
+    return {
+      available: false,
+      message: "目标夜距离现在超过 16 天，天气预报还不可靠；临近拍摄前再查询。",
+    };
+  }
+  return {
+    available: true,
+    message: "目标夜已进入 16 天预报窗口，可查询云量、降水概率、能见度和风。",
+  };
 }
 
 function weatherText(targetMs) {
@@ -895,4 +1451,8 @@ function normalizeDeg(value) {
 function normalizeSignedDeg(value) {
   const deg = normalizeDeg(value);
   return deg > 180 ? deg - 360 : deg;
+}
+
+function positiveModulo(value, modulus) {
+  return ((value % modulus) + modulus) % modulus;
 }
