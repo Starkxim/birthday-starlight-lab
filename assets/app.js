@@ -93,6 +93,7 @@ const $ = (id) => document.getElementById(id);
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
+  initTheme();
   populateTimeZones();
   setDefaultForm();
   bindControls();
@@ -119,6 +120,10 @@ function setDefaultForm() {
 }
 
 function bindControls() {
+  document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+    button.addEventListener("click", () => setTheme(button.dataset.themeChoice));
+  });
+
   $("birthForm").addEventListener("submit", (event) => {
     event.preventDefault();
     if (!app.catalog) return;
@@ -144,6 +149,20 @@ function bindControls() {
       event.preventDefault();
       searchPlace();
     }
+  });
+}
+
+function initTheme() {
+  const saved = localStorage.getItem("birthday-starlight-theme");
+  setTheme(saved === "fieldbook" ? "fieldbook" : "mission");
+}
+
+function setTheme(theme) {
+  const nextTheme = theme === "fieldbook" ? "fieldbook" : "mission";
+  document.body.dataset.theme = nextTheme;
+  localStorage.setItem("birthday-starlight-theme", nextTheme);
+  document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.themeChoice === nextTheme));
   });
 }
 
