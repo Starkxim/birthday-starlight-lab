@@ -476,6 +476,14 @@ button:focus-visible {
   overflow-wrap: anywhere;
 }
 
+.star-subtitle {
+  margin: -6px 0 14px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
 .metric-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

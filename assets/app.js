@@ -79,6 +79,8 @@ const STAR_COLORS = {
 
 const app = {
   catalog: null,
+  crossIds: {},
+  crossMeta: null,
   stars: [],
   results: [],
   selectedIndex: 0,
@@ -219,12 +221,29 @@ async function loadCatalog() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     app.catalog = await response.json();
     app.stars = app.catalog.stars || [];
+    await loadCrossIdentifications();
     const meta = app.catalog.meta || {};
-    status.textContent = `${(meta.count || app.stars.length).toLocaleString()} stars`;
+    const aliasCount = app.crossMeta?.matchedCount || Object.keys(app.crossIds).length;
+    status.textContent = `${(meta.count || app.stars.length).toLocaleString()} stars` +
+      (aliasCount ? ` · ${aliasCount.toLocaleString()} names` : "");
   } catch (error) {
     status.textContent = "Catalog failed";
     $("summary").innerHTML = `无法读取 <code>data/star-catalog.json</code>。请通过本地服务器或 GitHub Pages 打开页面。`;
     console.error(error);
+  }
+}
+
+async function loadCrossIdentifications() {
+  try {
+    const response = await fetch("data/star-crossids.json", { cache: "force-cache" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    app.crossIds = payload.aliases || {};
+    app.crossMeta = payload.meta || null;
+  } catch (error) {
+    app.crossIds = {};
+    app.crossMeta = null;
+    console.info("Optional star cross-identifications unavailable.", error);
   }
 }
 
@@ -605,10 +624,13 @@ function renderDetail() {
   const simbadUrl = `https://simbad.u-strasbg.fr/simbad/sim-coo?Coord=${encodeURIComponent(`${star.ra} ${star.dec}`)}&Radius=5&Radius.unit=arcsec`;
   const aladinUrl = `https://aladin.cds.unistra.fr/AladinLite/?target=${encodeURIComponent(`${star.ra} ${star.dec}`)}&fov=0.1&survey=P%2FDSS2%2Fcolor`;
   const weatherNote = weatherText(record.targetMs);
+  const subtitle = secondaryName(star);
+  const identifiers = identifierSummary(star);
 
   detail.innerHTML = `
     <div class="target-label">${kindLabel}</div>
     <h3 class="star-name">${escapeHTML(displayName(star))}</h3>
+    ${subtitle ? `<p class="star-subtitle">${escapeHTML(subtitle)}</p>` : ""}
     <div class="metric-grid">
       <div class="metric"><span>抵达时刻</span><strong>${formatZoned(record.arrivalMs, form.observerTimeZone)}</strong></div>
       <div class="metric"><span>生日目标</span><strong>${formatZoned(record.targetMs, form.birthTimeZone)}</strong></div>
@@ -616,6 +638,7 @@ function renderDetail() {
       <div class="metric"><span>距离范围</span><strong>${star.distanceMinLy.toFixed(3)} 到 ${star.distanceMaxLy.toFixed(3)} 光年</strong></div>
       <div class="metric"><span>亮度和颜色</span><strong>G ${star.gMag.toFixed(2)}，${colorLabel(star.colorClass)}</strong></div>
       <div class="metric"><span>最佳窗口</span><strong>${formatZoned(record.visibility.timeMs, form.observerTimeZone)}，高度 ${record.visibility.alt.toFixed(0)}°</strong></div>
+      <div class="metric"><span>交叉标识</span><strong>${escapeHTML(identifiers)}</strong></div>
       <div class="metric"><span>坐标</span><strong>RA ${star.ra.toFixed(5)}°，Dec ${star.dec.toFixed(5)}°</strong></div>
       <div class="metric"><span>方位</span><strong>${azLabel(record.visibility.az)} ${record.visibility.az.toFixed(0)}°</strong></div>
     </div>
@@ -749,7 +772,46 @@ function drawStarscape() {
 }
 
 function displayName(star) {
+  const aliases = aliasFor(star);
+  if (aliases?.commonName) return aliases.commonName;
+  if (aliases?.bayerName) return aliases.bayerName;
+  if (aliases?.hip) return aliases.hip;
+  if (aliases?.hd) return aliases.hd;
+  if (aliases?.gj) return aliases.gj;
   return star.designation || `Gaia DR3 ${star.id}`;
+}
+
+function secondaryName(star) {
+  const aliases = aliasFor(star);
+  if (!aliases) return "";
+  const names = [
+    aliases.commonName ? aliases.bayerName : "",
+    aliases.simbadMainId && aliases.simbadMainId !== aliases.bayerDesignation ? aliases.simbadMainId : "",
+    star.designation || `Gaia DR3 ${star.id}`,
+  ].filter(Boolean);
+  return unique(names).join(" · ");
+}
+
+function identifierSummary(star) {
+  const aliases = aliasFor(star);
+  if (!aliases) return `Gaia DR3 ${star.id}`;
+  const identifiers = [
+    aliases.hip,
+    aliases.hd,
+    aliases.hr,
+    aliases.gj,
+    aliases.simbadMainId ? `SIMBAD ${aliases.simbadMainId}` : "",
+    `Gaia DR3 ${star.id}`,
+  ].filter(Boolean);
+  return unique(identifiers).join(" · ");
+}
+
+function aliasFor(star) {
+  return app.crossIds?.[star.id] || null;
+}
+
+function unique(values) {
+  return [...new Set(values)];
 }
 
 function colorLabel(colorClass) {
