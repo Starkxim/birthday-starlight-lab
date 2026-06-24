@@ -14,6 +14,7 @@ Birthday Starlight is a browser-only astronomy web app. Enter a birth date, time
 - Uses IANA time zones for birth and observing locations.
 - Lets users pick an observing coordinate on an OpenStreetMap map or enter coordinates manually.
 - Offers equipment levels from naked-eye dark-sky observing to advanced civilian imaging setups.
+- Exports selected targets as `.ics` calendar reminders for personal calendar apps.
 - Runs fully in the browser with no account system, no backend, and no visitor data upload.
 - Includes a GitHub Actions workflow for publishing the static site to GitHub Pages.
 - Includes a Python script and manual workflow for rebuilding the star catalog from the ESA Gaia Archive.
@@ -130,6 +131,7 @@ The repository is intended to be maintained through issues and pull requests. Di
 - SIMBAD, HIP, and common-name overlay for the bright catalog layer, currently generated for stars with Gaia G magnitude `<= 8.5`.
 - Shareable result links that encode selected settings only, without accounts or server storage.
 - Optional Open-Meteo forecast checks when a target night falls inside the reliable forecast window.
+- `.ics` calendar reminder export for selected birthday targets.
 
 ## Roadmap
 
@@ -138,7 +140,7 @@ The roadmap is prioritized by user pain and reviewability. Each item should land
 | Priority | Feature | Why it matters |
 | --- | --- | --- |
 | P1 | Offline light-pollution lookup | Location selection is already coordinate-based, but the app still cannot estimate sky quality from that coordinate. This is a major observing-difficulty gap. |
-| P2 | Calendar reminders and optional email reminders | Calendar export can stay static-site friendly. Email would introduce backend, abuse-prevention, and privacy work. |
+| P2 | Optional email reminders or richer reminder scheduling | Calendar export now stays static-site friendly. Email reminders would introduce backend, abuse-prevention, and privacy work. |
 | P2 | Weather quality scoring refinements | Open-Meteo gives convenient forecast-window data; astronomy-specific transparency and seeing sources would make observing guidance sharper. |
 | P2 | Broader cross-identification coverage | The current alias layer keeps the static payload small by defaulting to Gaia G magnitude `<= 8.5`; fainter targets need a larger offline file or a lazy lookup strategy. |
 | P2 | Pull-request based catalog update workflow | The catalog rebuild workflow should produce reviewable changes through PRs, never write directly to `main`. The current manual artifact workflow is a safe baseline. |
@@ -185,6 +187,7 @@ English version: [English](#birthday-starlight)
 - 使用 IANA 时区分别表示出生地和观测地时区。
 - 可以在 OpenStreetMap 地图上选择观测坐标，也可以手动输入经纬度。
 - 设备档位从肉眼暗空到进阶民用拍摄设备，按亮度极限和操作难度分级。
+- 可以把选中的目标导出为 `.ics` 日历提醒，导入个人日历应用。
 - 完全在浏览器中运行，没有账号系统、没有后端、不会上传访客输入。
 - 自带 GitHub Actions 工作流，可发布到 GitHub Pages。
 - 自带 Python 脚本和手动工作流，可从 ESA Gaia Archive 重建恒星星表。
@@ -301,6 +304,7 @@ distance_ly = 3261.563777 / parallax_mas
 - 为亮星表层加入 SIMBAD、HIP 和常用名别名，当前默认覆盖 Gaia G 星等 `<= 8.5` 的目标。
 - 生成只编码用户选择、不需要账号和服务器存储的分享链接。
 - 当目标夜进入可靠预报窗口后，可选择查询 Open-Meteo 天气预报。
+- 把选中的生日目标导出为 `.ics` 日历提醒文件。
 
 ## 未来路线
 
@@ -309,7 +313,7 @@ distance_ly = 3261.563777 / parallax_mas
 | 优先级 | 功能 | 为什么重要 |
 | --- | --- | --- |
 | P1 | 使用离线光污染数据按坐标估算天空质量 | 现在已经支持地图选点，但还不能根据坐标判断光污染，这是拍摄难度判断里的明显缺口。 |
-| P2 | 日历提醒与可选邮件提醒 | 日历导出仍然适合静态网站；邮件会引入后端、防滥用和隐私问题。 |
+| P2 | 可选邮件提醒或更丰富的提醒计划 | 现在已经有适合静态网站的日历导出；邮件提醒会引入后端、防滥用和隐私问题。 |
 | P2 | 改进天气质量评分 | Open-Meteo 已能提供预报窗口内的天气数据；如果加入更贴近天文观测的透明度和视宁度来源，建议会更准确。 |
 | P2 | 扩展更暗目标的交叉标识覆盖 | 当前别名层为了控制静态文件体积，默认覆盖 Gaia G 星等 `<= 8.5`；更暗目标需要更大的离线文件或按需查询策略。 |
 | P2 | 用 pull request 更新星表 | 星表重建应产生可 review 的变更，而不是直接写入 `main`。当前手动 artifact 工作流已经是安全基线。 |

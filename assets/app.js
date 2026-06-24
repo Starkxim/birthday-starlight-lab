@@ -953,9 +953,11 @@ function renderDetail() {
       <a href="${simbadUrl}" target="_blank" rel="noreferrer">SIMBAD</a>
       <a href="${aladinUrl}" target="_blank" rel="noreferrer">Aladin</a>
       <a href="https://gea.esac.esa.int/archive/" target="_blank" rel="noreferrer">Gaia Archive</a>
+      <button id="calendarButton" type="button">日历提醒</button>
     </div>
   `;
   bindWeatherControls(record, form);
+  bindCalendarDownload(record, form);
   drawSkyChart(record);
 }
 
@@ -1134,6 +1136,85 @@ function formatHours(hours) {
   const abs = Math.abs(hours);
   if (abs < 0.15) return "0 小时";
   return `${hours >= 0 ? "晚" : "早"} ${abs.toFixed(1)} 小时`;
+}
+
+function bindCalendarDownload(record, form) {
+  const button = $("calendarButton");
+  if (!button) return;
+  button.addEventListener("click", () => downloadCalendarEvent(record, form));
+}
+
+function downloadCalendarEvent(record, form) {
+  const star = record.star;
+  const startMs = record.visibility.timeMs;
+  const endMs = startMs + 2 * 60 * 60_000;
+  const title = `Birthday Starlight: ${displayName(star)}`;
+  const description = [
+    `Target: ${displayName(star)}`,
+    `Gaia DR3 source_id: ${star.id}`,
+    `Arrival estimate: ${formatZoned(record.arrivalMs, form.observerTimeZone)}`,
+    `Birthday target: ${formatZoned(record.targetMs, form.birthTimeZone)}`,
+    `Timing offset: ${formatDelta(record.deltaDays)}`,
+    `Distance range: ${star.distanceMinLy.toFixed(3)}-${star.distanceMaxLy.toFixed(3)} light-years`,
+    `Magnitude: Gaia G ${star.gMag.toFixed(2)}`,
+    `Coordinates: RA ${star.ra.toFixed(5)} deg, Dec ${star.dec.toFixed(5)} deg`,
+    `Best window: ${formatZoned(record.visibility.timeMs, form.observerTimeZone)}, altitude ${record.visibility.alt.toFixed(0)} deg, azimuth ${record.visibility.az.toFixed(0)} deg`,
+    "Check weather, moonlight, transparency, and framing before observing.",
+  ].join("\n");
+  const location = `${form.location.name} (${form.location.lat.toFixed(4)}, ${form.location.lon.toFixed(4)})`;
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Birthday Starlight//Find My Star//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    `UID:${calendarUid(record, form)}`,
+    `DTSTAMP:${formatIcsDate(Date.now())}`,
+    `DTSTART:${formatIcsDate(startMs)}`,
+    `DTEND:${formatIcsDate(endMs)}`,
+    `SUMMARY:${escapeIcs(title)}`,
+    `DESCRIPTION:${escapeIcs(description)}`,
+    `LOCATION:${escapeIcs(location)}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+    "",
+  ].join("\r\n");
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${slugify(displayName(star))}-${formatIcsDate(startMs).slice(0, 8)}.ics`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function calendarUid(record, form) {
+  const date = formatIcsDate(record.visibility.timeMs);
+  const place = `${form.location.lat.toFixed(4)},${form.location.lon.toFixed(4)}`;
+  return `${record.star.id}-${date}-${place}@birthday-starlight`;
+}
+
+function formatIcsDate(ms) {
+  return new Date(ms).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+}
+
+function escapeIcs(value) {
+  return String(value)
+    .replaceAll("\\", "\\\\")
+    .replaceAll(";", "\\;")
+    .replaceAll(",", "\\,")
+    .replaceAll("\n", "\\n");
+}
+
+function slugify(value) {
+  const slug = String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || "birthday-starlight";
 }
 
 function drawSkyChart(record) {
