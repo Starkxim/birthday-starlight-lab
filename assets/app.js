@@ -1,6 +1,7 @@
 const DAY_MS = 86_400_000;
 const JULIAN_YEAR_DAYS = 365.25;
 const YEAR_MS = DAY_MS * JULIAN_YEAR_DAYS;
+const SYNODIC_MONTH_DAYS = 29.53058867;
 const DEG = Math.PI / 180;
 const RAD = 180 / Math.PI;
 
@@ -95,6 +96,7 @@ const $ = (id) => document.getElementById(id);
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
+  initTheme();
   populateTimeZones();
   setDefaultForm();
   bindControls();
@@ -121,6 +123,10 @@ function setDefaultForm() {
 }
 
 function bindControls() {
+  document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+    button.addEventListener("click", () => setTheme(button.dataset.themeChoice));
+  });
+
   $("birthForm").addEventListener("submit", (event) => {
     event.preventDefault();
     if (!app.catalog) return;
@@ -146,6 +152,20 @@ function bindControls() {
       event.preventDefault();
       searchPlace();
     }
+  });
+}
+
+function initTheme() {
+  const saved = localStorage.getItem("birthday-starlight-theme");
+  setTheme(saved === "fieldbook" ? "fieldbook" : "mission");
+}
+
+function setTheme(theme) {
+  const nextTheme = theme === "fieldbook" ? "fieldbook" : "mission";
+  document.body.dataset.theme = nextTheme;
+  localStorage.setItem("birthday-starlight-theme", nextTheme);
+  document.querySelectorAll("[data-theme-choice]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.themeChoice === nextTheme));
   });
 }
 
@@ -461,8 +481,195 @@ function horizontalCoords(raDeg, decDeg, ms, latDeg, lonDeg) {
   };
 }
 
+function observingConditions(record, form) {
+  const stepMs = 10 * 60_000;
+  const bounds = observingNightBounds(record.visibility.timeMs, form.observerTimeZone);
+  const samples = [];
+
+  for (let ms = bounds.startMs; ms <= bounds.endMs; ms += stepMs) {
+    const sun = sunEquatorial(ms);
+    const moon = moonEquatorial(ms);
+    const target = horizontalCoords(record.star.ra, record.star.dec, ms, form.location.lat, form.location.lon);
+    const sunAltAz = horizontalCoords(sun.ra, sun.dec, ms, form.location.lat, form.location.lon);
+    const moonAltAz = horizontalCoords(moon.ra, moon.dec, ms, form.location.lat, form.location.lon);
+    samples.push({
+      ms,
+      targetAlt: target.alt,
+      sunAlt: sunAltAz.alt,
+      moonAlt: moonAltAz.alt,
+    });
+  }
+
+  const minAlt = form.equipment.minAlt;
+  const darkWindows = conditionWindows(samples, (sample) => sample.sunAlt <= -18, stepMs, bounds.endMs);
+  const targetWindows = conditionWindows(samples, (sample) => sample.targetAlt >= minAlt, stepMs, bounds.endMs);
+  const usableWindows = conditionWindows(
+    samples,
+    (sample) => sample.sunAlt <= -18 && sample.targetAlt >= minAlt,
+    stepMs,
+    bounds.endMs,
+  );
+  const bestUsable = samples
+    .filter((sample) => sample.sunAlt <= -18 && sample.targetAlt >= minAlt)
+    .sort((a, b) => b.targetAlt - a.targetAlt)[0];
+  const darkest = samples.slice().sort((a, b) => a.sunAlt - b.sunAlt)[0];
+  const moonSample = bestUsable || samples.reduce((best, sample) => (
+    Math.abs(sample.ms - record.visibility.timeMs) < Math.abs(best.ms - record.visibility.timeMs) ? sample : best
+  ), samples[0]);
+  const phase = moonPhase(moonSample.ms);
+  const moonText = `${phase.label}，照明约 ${phase.illuminationPercent}%` +
+    (moonSample.moonAlt >= 0 ? `，月亮高度 ${moonSample.moonAlt.toFixed(0)}°` : "，月亮在地平线下");
+
+  const usableWindowText = usableWindows.length
+    ? formatWindowList(usableWindows, form.observerTimeZone)
+    : "目标高度与天文夜无重叠";
+  const targetWindowText = targetWindows.length
+    ? formatWindowList(targetWindows, form.observerTimeZone)
+    : `目标没有高于 ${minAlt}° 的窗口`;
+  const darkWindowText = darkWindows.length
+    ? formatWindowList(darkWindows, form.observerTimeZone)
+    : `无天文夜，太阳最低 ${darkest.sunAlt.toFixed(0)}°`;
+
+  const summary = bestUsable
+    ? `观测夜 ${bounds.label}：天文夜 ${darkWindowText}；目标高于 ${minAlt}° 的窗口 ${targetWindowText}；暗夜内最佳约 ${formatClock(bestUsable.ms, form.observerTimeZone)}，目标高度 ${bestUsable.targetAlt.toFixed(0)}°，太阳高度 ${bestUsable.sunAlt.toFixed(0)}°。`
+    : `观测夜 ${bounds.label}：天文夜 ${darkWindowText}；目标高于 ${minAlt}° 的窗口 ${targetWindowText}；两者暂未重叠，可以改用相邻日期、降低最低高度或选择更亮候选。`;
+
+  return {
+    darkWindowText,
+    targetWindowText,
+    usableWindowText,
+    moonText,
+    summary,
+  };
+}
+
+function observingNightBounds(bestMs, timeZone) {
+  const parts = getZonedParts(bestMs, timeZone);
+  const eveningDate = parts.hour < 12
+    ? shiftLocalDate(parts.year, parts.month, parts.day, -1)
+    : { year: parts.year, month: parts.month, day: parts.day };
+  const startMs = zonedDateMs(eveningDate.year, eveningDate.month, eveningDate.day, 18, 0, timeZone);
+  const endMs = zonedDateMs(eveningDate.year, eveningDate.month, eveningDate.day + 1, 8, 0, timeZone);
+  return {
+    startMs,
+    endMs,
+    label: `${eveningDate.year}-${pad2(eveningDate.month)}-${pad2(eveningDate.day)}`,
+  };
+}
+
+function shiftLocalDate(year, month, day, offsetDays) {
+  const date = new Date(Date.UTC(year, month - 1, day + offsetDays, 12, 0, 0));
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+  };
+}
+
+function conditionWindows(samples, predicate, stepMs, endMs) {
+  const windows = [];
+  let startMs = null;
+  let lastMs = null;
+
+  for (const sample of samples) {
+    if (predicate(sample)) {
+      if (startMs === null) startMs = sample.ms;
+      lastMs = Math.min(sample.ms + stepMs, endMs);
+    } else if (startMs !== null) {
+      windows.push({ startMs, endMs: lastMs });
+      startMs = null;
+      lastMs = null;
+    }
+  }
+
+  if (startMs !== null) windows.push({ startMs, endMs: lastMs });
+  return windows;
+}
+
+function formatWindowList(windows, timeZone) {
+  return windows.map((window) => `${formatClock(window.startMs, timeZone)}-${formatClock(window.endMs, timeZone)}`).join("，");
+}
+
+function formatClock(ms, timeZone) {
+  const parts = getZonedParts(ms, timeZone);
+  return `${pad2(parts.hour)}:${pad2(parts.minute)}`;
+}
+
+function sunEquatorial(ms) {
+  const d = julianDay(ms) - 2451543.5;
+  const w = normalizeDeg(282.9404 + 4.70935e-5 * d);
+  const e = 0.016709 - 1.151e-9 * d;
+  const meanAnomaly = normalizeDeg(356.0470 + 0.9856002585 * d);
+  const eccentricAnomaly = meanAnomaly + e * RAD * Math.sin(meanAnomaly * DEG) * (1 + e * Math.cos(meanAnomaly * DEG));
+  const xv = Math.cos(eccentricAnomaly * DEG) - e;
+  const yv = Math.sqrt(1 - e * e) * Math.sin(eccentricAnomaly * DEG);
+  const trueAnomaly = Math.atan2(yv, xv) * RAD;
+  const lon = normalizeDeg(trueAnomaly + w);
+  const obliquity = (23.4393 - 3.563e-7 * d) * DEG;
+  const x = Math.cos(lon * DEG);
+  const y = Math.sin(lon * DEG) * Math.cos(obliquity);
+  const z = Math.sin(lon * DEG) * Math.sin(obliquity);
+
+  return {
+    ra: normalizeDeg(Math.atan2(y, x) * RAD),
+    dec: Math.atan2(z, Math.sqrt(x * x + y * y)) * RAD,
+  };
+}
+
+function moonEquatorial(ms) {
+  const d = julianDay(ms) - 2451543.5;
+  const node = normalizeDeg(125.1228 - 0.0529538083 * d) * DEG;
+  const inclination = 5.1454 * DEG;
+  const argPerigee = normalizeDeg(318.0634 + 0.1643573223 * d) * DEG;
+  const semiMajorAxis = 60.2666;
+  const eccentricity = 0.054900;
+  const meanAnomaly = normalizeDeg(115.3654 + 13.0649929509 * d);
+  const eccentricAnomaly = meanAnomaly + eccentricity * RAD * Math.sin(meanAnomaly * DEG) * (1 + eccentricity * Math.cos(meanAnomaly * DEG));
+  const xOrbital = semiMajorAxis * (Math.cos(eccentricAnomaly * DEG) - eccentricity);
+  const yOrbital = semiMajorAxis * Math.sqrt(1 - eccentricity * eccentricity) * Math.sin(eccentricAnomaly * DEG);
+  const distance = Math.sqrt(xOrbital * xOrbital + yOrbital * yOrbital);
+  const trueAnomaly = Math.atan2(yOrbital, xOrbital);
+  const lonArg = trueAnomaly + argPerigee;
+  const xEcliptic = distance * (Math.cos(node) * Math.cos(lonArg) - Math.sin(node) * Math.sin(lonArg) * Math.cos(inclination));
+  const yEcliptic = distance * (Math.sin(node) * Math.cos(lonArg) + Math.cos(node) * Math.sin(lonArg) * Math.cos(inclination));
+  const zEcliptic = distance * Math.sin(lonArg) * Math.sin(inclination);
+  const obliquity = (23.4393 - 3.563e-7 * d) * DEG;
+  const xEquatorial = xEcliptic;
+  const yEquatorial = yEcliptic * Math.cos(obliquity) - zEcliptic * Math.sin(obliquity);
+  const zEquatorial = yEcliptic * Math.sin(obliquity) + zEcliptic * Math.cos(obliquity);
+
+  return {
+    ra: normalizeDeg(Math.atan2(yEquatorial, xEquatorial) * RAD),
+    dec: Math.atan2(zEquatorial, Math.sqrt(xEquatorial * xEquatorial + yEquatorial * yEquatorial)) * RAD,
+  };
+}
+
+function moonPhase(ms) {
+  const age = positiveModulo(julianDay(ms) - 2451550.1, SYNODIC_MONTH_DAYS);
+  const angle = (age / SYNODIC_MONTH_DAYS) * Math.PI * 2;
+  const illuminationPercent = Math.round(((1 - Math.cos(angle)) / 2) * 100);
+  const label = moonPhaseLabel(age);
+  return { age, illuminationPercent, label };
+}
+
+function moonPhaseLabel(age) {
+  if (age < 1.84566) return "新月";
+  if (age < 5.53699) return "蛾眉月";
+  if (age < 9.22831) return "上弦前后";
+  if (age < 12.91963) return "盈凸月";
+  if (age < 16.61096) return "满月前后";
+  if (age < 20.30228) return "亏凸月";
+  if (age < 23.99361) return "下弦前后";
+  if (age < 27.68493) return "残月";
+  return "新月";
+}
+
+function julianDay(ms) {
+  return ms / DAY_MS + 2440587.5;
+}
+
 function gmstDeg(ms) {
-  const jd = ms / DAY_MS + 2440587.5;
+  const jd = julianDay(ms);
   const days = jd - 2451545.0;
   return normalizeDeg(280.46061837 + 360.98564736629 * days);
 }
@@ -626,6 +833,7 @@ function renderDetail() {
   const weatherNote = weatherText(record.targetMs);
   const subtitle = secondaryName(star);
   const identifiers = identifierSummary(star);
+  const conditions = observingConditions(record, form);
 
   detail.innerHTML = `
     <div class="target-label">${kindLabel}</div>
@@ -639,6 +847,8 @@ function renderDetail() {
       <div class="metric"><span>亮度和颜色</span><strong>G ${star.gMag.toFixed(2)}，${colorLabel(star.colorClass)}</strong></div>
       <div class="metric"><span>最佳窗口</span><strong>${formatZoned(record.visibility.timeMs, form.observerTimeZone)}，高度 ${record.visibility.alt.toFixed(0)}°</strong></div>
       <div class="metric"><span>交叉标识</span><strong>${escapeHTML(identifiers)}</strong></div>
+      <div class="metric"><span>暗夜可拍</span><strong>${escapeHTML(conditions.usableWindowText)}</strong></div>
+      <div class="metric"><span>月相和月高</span><strong>${escapeHTML(conditions.moonText)}</strong></div>
       <div class="metric"><span>坐标</span><strong>RA ${star.ra.toFixed(5)}°，Dec ${star.dec.toFixed(5)}°</strong></div>
       <div class="metric"><span>方位</span><strong>${azLabel(record.visibility.az)} ${record.visibility.az.toFixed(0)}°</strong></div>
     </div>
@@ -649,9 +859,11 @@ function renderDetail() {
     </div>
     <ul class="note-list">
       <li>${escapeHTML(form.equipment.note)}</li>
+      <li>${escapeHTML(conditions.summary)}</li>
       <li>${escapeHTML(weatherNote)}</li>
       <li>视差不确定性对应抵达范围：${formatZoned(record.arrivalMinMs, form.observerTimeZone)} 到 ${formatZoned(record.arrivalMaxMs, form.observerTimeZone)}。</li>
       <li>找星时可在 Stellarium 或 Aladin 中输入 Gaia source_id：${escapeHTML(star.id)}，再核对相机视场。</li>
+      <li>太阳和月亮位置为浏览器端近似星历，用于初筛月光和暮光；正式拍摄前请再用 Stellarium 或天文历核对。</li>
     </ul>
     <div class="link-row">
       <a href="${simbadUrl}" target="_blank" rel="noreferrer">SIMBAD</a>
@@ -876,4 +1088,8 @@ function normalizeDeg(value) {
 function normalizeSignedDeg(value) {
   const deg = normalizeDeg(value);
   return deg > 180 ? deg - 360 : deg;
+}
+
+function positiveModulo(value, modulus) {
+  return ((value % modulus) + modulus) % modulus;
 }
