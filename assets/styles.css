@@ -454,6 +454,12 @@ body[data-theme="mission"] .secondary-action {
   background: #e6eef8;
 }
 
+.form-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, auto);
+  gap: 10px;
+}
+
 .primary-action:active,
 .secondary-action:active,
 .year-cell:active,
@@ -728,6 +734,7 @@ body[data-theme="mission"] .equipment-note {
   .workspace,
   .field-pair,
   .map-toolbar,
+  .form-actions,
   .candidate-tabs,
   .metric-grid {
     grid-template-columns: 1fr;

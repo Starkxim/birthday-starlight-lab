@@ -133,7 +133,11 @@
             <input id="horizon" type="number" min="5" max="50" value="20">
           </label>
 
-          <button class="primary-action" type="submit">生成生日星光</button>
+          <div class="form-actions">
+            <button class="primary-action" type="submit">生成生日星光</button>
+            <button id="shareButton" class="secondary-action" type="button">复制分享链接</button>
+          </div>
+          <p id="shareStatus" class="field-note" aria-live="polite"></p>
         </form>
       </section>
 

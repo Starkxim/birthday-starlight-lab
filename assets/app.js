@@ -99,6 +99,7 @@ async function init() {
   initTheme();
   populateTimeZones();
   setDefaultForm();
+  applySharedState();
   bindControls();
   initMap();
   drawStarscape();
@@ -137,6 +138,7 @@ function bindControls() {
       app.results = computeResults(form);
       app.selectedIndex = 0;
       app.selectedKind = "precision";
+      updateShareUrl(form);
       renderResults();
     } catch (error) {
       $("summary").innerHTML = `<span class="warning">${escapeHTML(error.message)}</span>`;
@@ -146,6 +148,7 @@ function bindControls() {
 
   $("latitude").addEventListener("change", syncMarkerFromFields);
   $("longitude").addEventListener("change", syncMarkerFromFields);
+  $("shareButton").addEventListener("click", copyShareLink);
   $("placeSearchButton").addEventListener("click", searchPlace);
   $("placeSearch").addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
@@ -175,22 +178,101 @@ function initMap() {
     return;
   }
 
+  const fieldLat = Number($("latitude").value);
+  const fieldLon = Number($("longitude").value);
+  const startLat = clamp(Number.isFinite(fieldLat) ? fieldLat : DEFAULT_LOCATION.lat, -90, 90);
+  const startLon = clamp(Number.isFinite(fieldLon) ? fieldLon : DEFAULT_LOCATION.lon, -180, 180);
   app.map = L.map("map", {
     zoomControl: true,
     attributionControl: true,
-  }).setView([DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lon], 2);
+  }).setView([startLat, startLon], 2);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 18,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
   }).addTo(app.map);
 
-  app.marker = L.marker([DEFAULT_LOCATION.lat, DEFAULT_LOCATION.lon], { draggable: true }).addTo(app.map);
+  app.marker = L.marker([startLat, startLon], { draggable: true }).addTo(app.map);
   app.marker.on("dragend", () => {
     const pos = app.marker.getLatLng();
     setLocation(pos.lat, pos.lng, "地图选点");
   });
   app.map.on("click", (event) => setLocation(event.latlng.lat, event.latlng.lng, "地图选点"));
+}
+
+function applySharedState() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.size) return;
+
+  setInputFromParam(params, "birthDate", "birth");
+  setInputFromParam(params, "birthTime", "time");
+  setInputFromParam(params, "birthTimeZone", "birthTz");
+  setInputFromParam(params, "observerTimeZone", "obsTz");
+  setInputFromParam(params, "latitude", "lat");
+  setInputFromParam(params, "longitude", "lon");
+  setInputFromParam(params, "horizon", "years");
+  setInputFromParam(params, "placeSearch", "place");
+
+  const equipmentKey = params.get("equipment");
+  if (equipmentKey && EQUIPMENT[equipmentKey]) {
+    const option = document.querySelector(`input[name="equipment"][value="${equipmentKey}"]`);
+    if (option) option.checked = true;
+  }
+}
+
+function setInputFromParam(params, inputId, paramName) {
+  const value = params.get(paramName);
+  if (value !== null && value !== "") $(inputId).value = value;
+}
+
+async function copyShareLink() {
+  try {
+    const form = app.currentForm || readForm();
+    const url = updateShareUrl(form);
+    if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+    await navigator.clipboard.writeText(url);
+    setShareStatus("分享链接已复制。");
+  } catch (error) {
+    if (error.name === "NotAllowedError" || error.name === "SecurityError" || error.message === "Clipboard unavailable") {
+      const form = app.currentForm || readForm();
+      updateShareUrl(form);
+      setShareStatus("链接已更新到地址栏，可以手动复制。");
+      return;
+    }
+    setShareStatus(error.message || "无法生成分享链接。", true);
+  }
+}
+
+function updateShareUrl(form) {
+  const url = buildShareUrl(form);
+  window.history.replaceState(null, "", url);
+  return url;
+}
+
+function buildShareUrl(form) {
+  const params = new URLSearchParams();
+  params.set("birth", `${form.birthYear}-${pad2(form.birthMonth)}-${pad2(form.birthDay)}`);
+  params.set("time", `${pad2(form.birthHour)}:${pad2(form.birthMinute)}`);
+  params.set("birthTz", form.birthTimeZone);
+  params.set("obsTz", form.observerTimeZone);
+  params.set("lat", form.location.lat.toFixed(4));
+  params.set("lon", form.location.lon.toFixed(4));
+  params.set("equipment", equipmentKeyFor(form.equipment));
+  params.set("years", String(form.horizon));
+  if (form.location.name && form.location.name !== DEFAULT_LOCATION.name) {
+    params.set("place", form.location.name);
+  }
+  return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+}
+
+function equipmentKeyFor(equipment) {
+  return Object.entries(EQUIPMENT).find(([, value]) => value === equipment)?.[0] || "naked";
+}
+
+function setShareStatus(message, isWarning = false) {
+  const target = $("shareStatus");
+  target.textContent = message;
+  target.classList.toggle("warning", isWarning);
 }
 
 function setLocation(lat, lon, name) {
