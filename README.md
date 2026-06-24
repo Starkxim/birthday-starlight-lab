@@ -45,7 +45,10 @@ index.html                 Page structure
 assets/styles.css          Visual design and responsive layout
 assets/app.js              Browser-side birthday-light calculations
 data/star-catalog.json     Precomputed Gaia DR3 nearby-star catalog
+data/star-crossids.json    Compact SIMBAD/HIP/HD/common-name alias overlay
 scripts/build_catalog.py   Gaia Archive TAP catalog builder
+scripts/build_cross_identifications.py
+                            SIMBAD TAP alias overlay builder
 .github/workflows/         GitHub Pages and catalog rebuild workflows
 ```
 
@@ -67,11 +70,24 @@ python scripts/build_catalog.py \
 
 The catalog builder uses only the Python standard library, so it can run locally or on GitHub Actions without additional dependencies.
 
+Rebuild the optional SIMBAD cross-identification overlay:
+
+```bash
+python scripts/build_cross_identifications.py \
+  --catalog data/star-catalog.json \
+  --max-g-mag 8.5 \
+  --output data/star-crossids.json
+```
+
+The alias builder also uses only the Python standard library. It queries SIMBAD during preprocessing so visitors do not make per-page-load SIMBAD requests.
+
 The catalog rebuild workflow is manual and uploads the rebuilt JSON as an artifact. It does not commit directly to `main`.
 
 ## Data Model
 
 The public site does not query Gaia for every visitor. Instead, the Gaia Archive is queried during preprocessing, and the result is stored as `data/star-catalog.json`.
+
+Friendly names are stored separately in `data/star-crossids.json`. The current overlay is built from SIMBAD TAP `basic` and `ident` tables for stars with Gaia G magnitude `<= 8.5`, and includes common names, Bayer/Flamsteed-style names, HIP, HD, HR, GJ, and SIMBAD main identifiers when available.
 
 Each catalog entry includes:
 
@@ -102,19 +118,30 @@ The repository is intended to be maintained through issues and pull requests. Di
 - Weather cannot be forecast reliably years in advance. The app can optionally query Open-Meteo when a target night is within the 16-day forecast window, but observers should still recheck cloud cover, transparency, moon phase, and local conditions shortly before observing.
 - Map search uses OpenStreetMap Nominatim and map tiles use OpenStreetMap. Users can avoid search by entering coordinates manually.
 - Light pollution is not computed from the map coordinate yet. A future version could use an offline light-pollution raster or a dedicated API.
-- Most star names are Gaia DR3 designations. A future version could add SIMBAD/HIP/common-name cross-matches.
+- Cross-identifications currently cover the generated SIMBAD overlay, defaulting to stars with Gaia G magnitude `<= 8.5`. Fainter candidates may still show Gaia DR3 designations.
 - Time zone conversion uses browser `Intl` support for IANA time zones. Very old browsers may need a manual fallback.
 - This is an educational and planning tool, not an astrometric authority.
 
+## Completed Foundations
+
+- Static GitHub Pages app with a precomputed Gaia DR3 nearby-star catalog and browser-only birthday matching.
+- Mission and Fieldbook visual themes for different presentation styles.
+- Moon phase, twilight, and altitude-window overlays for candidate targets.
+- SIMBAD, HIP, and common-name overlay for the bright catalog layer, currently generated for stars with Gaia G magnitude `<= 8.5`.
+- Shareable result links that encode selected settings only, without accounts or server storage.
+- Optional Open-Meteo forecast checks when a target night falls inside the reliable forecast window.
+
 ## Roadmap
 
-- Email or calendar reminders for selected future birthday targets.
-- Moon phase, twilight, and altitude-window overlays for each candidate.
-- Weather quality scoring refinements, including astronomy-specific transparency and seeing sources where available.
-- Offline light-pollution lookup from a compressed public raster.
-- SIMBAD, HIP, and common-name cross-matches for friendlier target names.
-- Shareable result links that encode only chosen settings, not personal accounts.
-- A pull-request based catalog update workflow that never writes directly to `main`.
+The roadmap is prioritized by user pain and reviewability. Each item should land as its own pull request.
+
+| Priority | Feature | Why it matters |
+| --- | --- | --- |
+| P1 | Offline light-pollution lookup | Location selection is already coordinate-based, but the app still cannot estimate sky quality from that coordinate. This is a major observing-difficulty gap. |
+| P2 | Calendar reminders and optional email reminders | Calendar export can stay static-site friendly. Email would introduce backend, abuse-prevention, and privacy work. |
+| P2 | Weather quality scoring refinements | Open-Meteo gives convenient forecast-window data; astronomy-specific transparency and seeing sources would make observing guidance sharper. |
+| P2 | Broader cross-identification coverage | The current alias layer keeps the static payload small by defaulting to Gaia G magnitude `<= 8.5`; fainter targets need a larger offline file or a lazy lookup strategy. |
+| P2 | Pull-request based catalog update workflow | The catalog rebuild workflow should produce reviewable changes through PRs, never write directly to `main`. The current manual artifact workflow is a safe baseline. |
 
 ## Contributing
 
@@ -189,7 +216,10 @@ index.html                 页面结构
 assets/styles.css          视觉设计和响应式布局
 assets/app.js              浏览器端生日光计算逻辑
 data/star-catalog.json     预计算的 Gaia DR3 近邻恒星星表
+data/star-crossids.json    精简的 SIMBAD/HIP/HD/常用名别名层
 scripts/build_catalog.py   Gaia Archive TAP 星表构建脚本
+scripts/build_cross_identifications.py
+                            SIMBAD TAP 别名层构建脚本
 .github/workflows/         GitHub Pages 与星表重建工作流
 ```
 
@@ -211,11 +241,24 @@ python scripts/build_catalog.py \
 
 星表构建脚本只使用 Python 标准库，因此可以在本地或 GitHub Actions 中直接运行。
 
+重建可选的 SIMBAD 交叉标识层：
+
+```bash
+python scripts/build_cross_identifications.py \
+  --catalog data/star-catalog.json \
+  --max-g-mag 8.5 \
+  --output data/star-crossids.json
+```
+
+别名构建脚本同样只使用 Python 标准库。它只在预处理阶段查询 SIMBAD，网页访问者不会在每次打开页面时请求 SIMBAD。
+
 星表重建工作流需要手动触发，并把新的 JSON 作为 artifact 上传。它不会直接提交到 `main`。
 
 ## 数据模型
 
 公开网页不会在每次访问时实时查询 Gaia。Gaia Archive 只在预处理阶段查询一次，结果保存为 `data/star-catalog.json`。
+
+友好名称单独保存在 `data/star-crossids.json`。当前别名层来自 SIMBAD TAP 的 `basic` 和 `ident` 表，覆盖 Gaia G 星等 `<= 8.5` 的恒星；可用时包含常用名、Bayer/Flamsteed 风格名称、HIP、HD、HR、GJ 和 SIMBAD 主标识。
 
 每条恒星记录包含：
 
@@ -246,19 +289,30 @@ distance_ly = 3261.563777 / parallax_mas
 - 天气无法提前多年可靠预测。目标夜进入 16 天预报窗口后，页面可以选择性查询 Open-Meteo；实际观测前仍需再次检查云量、透明度、月相和本地天气。
 - 地图搜索使用 OpenStreetMap Nominatim，地图瓦片使用 OpenStreetMap。用户也可以不搜索地点，直接手动输入坐标。
 - 当前还没有根据地图坐标计算光污染。后续可以接入离线光污染栅格或专用 API。
-- 恒星名称主要使用 Gaia DR3 designation。后续可以加入 SIMBAD、HIP 和常用名交叉匹配。
+- 交叉标识目前覆盖生成的 SIMBAD 别名层，默认到 Gaia G 星等 `<= 8.5`。更暗的候选目标可能仍显示 Gaia DR3 designation。
 - 时区换算依赖浏览器 `Intl` 对 IANA 时区的支持。非常旧的浏览器可能需要降级方案。
 - 本项目适合教育、计划和观测灵感，不应视为权威天体测量工具。
 
+## 已完成基础能力
+
+- 可以部署到 GitHub Pages 的纯静态网页，使用预计算 Gaia DR3 近邻恒星星表，并在浏览器本地完成生日匹配。
+- 提供 Mission 与 Fieldbook 两套视觉主题。
+- 为候选目标叠加月相、天文晨昏和高度窗口。
+- 为亮星表层加入 SIMBAD、HIP 和常用名别名，当前默认覆盖 Gaia G 星等 `<= 8.5` 的目标。
+- 生成只编码用户选择、不需要账号和服务器存储的分享链接。
+- 当目标夜进入可靠预报窗口后，可选择查询 Open-Meteo 天气预报。
+
 ## 未来路线
 
-- 让用户为某个未来生日目标设置邮件或日历提醒。
-- 为每个候选目标叠加月相、天文晨昏和高度窗口。
-- 改进天气质量评分，未来可加入更贴近天文观测的透明度和视宁度来源。
-- 使用压缩后的公开光污染栅格做离线查询。
-- 加入 SIMBAD、HIP 和常用名交叉匹配，让目标名称更友好。
-- 生成可分享结果链接，只编码用户选择，不需要账号。
-- 用 pull request 更新星表，避免任何工作流直接写入 `main`。
+路线图按用户痛点和代码 review 粒度排序。每一项都应该单独开 pull request。
+
+| 优先级 | 功能 | 为什么重要 |
+| --- | --- | --- |
+| P1 | 使用离线光污染数据按坐标估算天空质量 | 现在已经支持地图选点，但还不能根据坐标判断光污染，这是拍摄难度判断里的明显缺口。 |
+| P2 | 日历提醒与可选邮件提醒 | 日历导出仍然适合静态网站；邮件会引入后端、防滥用和隐私问题。 |
+| P2 | 改进天气质量评分 | Open-Meteo 已能提供预报窗口内的天气数据；如果加入更贴近天文观测的透明度和视宁度来源，建议会更准确。 |
+| P2 | 扩展更暗目标的交叉标识覆盖 | 当前别名层为了控制静态文件体积，默认覆盖 Gaia G 星等 `<= 8.5`；更暗目标需要更大的离线文件或按需查询策略。 |
+| P2 | 用 pull request 更新星表 | 星表重建应产生可 review 的变更，而不是直接写入 `main`。当前手动 artifact 工作流已经是安全基线。 |
 
 ## 参与贡献
 
