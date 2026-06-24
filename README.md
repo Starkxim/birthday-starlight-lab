@@ -108,13 +108,17 @@ The repository is intended to be maintained through issues and pull requests. Di
 
 ## Roadmap
 
-- Email or calendar reminders for selected future birthday targets.
-- Moon phase, twilight, and altitude-window overlays for each candidate.
-- Optional weather checks when the target date enters a reliable forecast window.
-- Offline light-pollution lookup from a compressed public raster.
-- SIMBAD, HIP, and common-name cross-matches for friendlier target names.
-- Shareable result links that encode only chosen settings, not personal accounts.
-- A pull-request based catalog update workflow that never writes directly to `main`.
+The roadmap is prioritized by user pain and reviewability. Each item should land as its own pull request.
+
+| Priority | Feature | Why it matters |
+| --- | --- | --- |
+| P0 | SIMBAD, HIP, and common-name cross-matches | Gaia source IDs are accurate but unfriendly. Better names make the targets easier to recognize, search in planetarium apps, and explain to non-technical users. |
+| P0 | Moon phase, twilight, and altitude-window overlays | A target is only useful if the observing window is realistic. This directly improves whether a user can plan a night out. |
+| P1 | Offline light-pollution lookup | Location selection is already coordinate-based, but the app still cannot estimate sky quality from that coordinate. This is a major observing-difficulty gap. |
+| P1 | Shareable result links | Users should be able to share a generated plan without accounts. The link should encode settings only, not store personal data. |
+| P2 | Optional weather checks near the target date | Weather is useful only inside a reliable forecast window, so this should be contextual rather than always-on. |
+| P2 | Email or calendar reminders | Valuable for long-term follow-through, but it introduces backend, email, abuse-prevention, and privacy work. Calendar export can come before email. |
+| P2 | Pull-request based catalog update workflow | The catalog rebuild workflow should produce reviewable changes through PRs, never write directly to `main`. The current manual artifact workflow is a safe baseline. |
 
 ## Contributing
 
@@ -251,13 +255,17 @@ distance_ly = 3261.563777 / parallax_mas
 
 ## 未来路线
 
-- 让用户为某个未来生日目标设置邮件或日历提醒。
-- 为每个候选目标叠加月相、天文晨昏和高度窗口。
-- 当目标日期进入可靠预报窗口后，接入可选天气检查。
-- 使用压缩后的公开光污染栅格做离线查询。
-- 加入 SIMBAD、HIP 和常用名交叉匹配，让目标名称更友好。
-- 生成可分享结果链接，只编码用户选择，不需要账号。
-- 用 pull request 更新星表，避免任何工作流直接写入 `main`。
+路线图按用户痛点和代码 review 粒度排序。每一项都应该单独开 pull request。
+
+| 优先级 | 功能 | 为什么重要 |
+| --- | --- | --- |
+| P0 | 加入 SIMBAD、HIP 和常用名交叉匹配 | Gaia source ID 很准确，但对普通用户不友好。更好的名称能让用户在星图软件里搜索，也更容易讲给别人听。 |
+| P0 | 为每个候选目标叠加月相、天文晨昏和高度窗口 | 目标星是否值得推荐，取决于当天是否真的适合观测。这直接影响用户能不能安排一次拍摄。 |
+| P1 | 使用离线光污染数据按坐标估算天空质量 | 现在已经支持地图选点，但还不能根据坐标判断光污染，这是拍摄难度判断里的明显缺口。 |
+| P1 | 生成可分享结果链接 | 用户应该能分享自己的星光计划，但不需要账号。链接只编码选择项，不保存个人数据。 |
+| P2 | 目标日期临近时接入可选天气检查 | 天气只在可靠预报窗口内有意义，所以应该做成临近日期才出现的上下文功能。 |
+| P2 | 邮件或日历提醒 | 对长期计划很有价值，但会引入后端、邮件、防滥用和隐私问题。可以先做日历导出，再考虑邮件。 |
+| P2 | 用 pull request 更新星表 | 星表重建应产生可 review 的变更，而不是直接写入 `main`。当前手动 artifact 工作流已经是安全基线。 |
 
 ## 参与贡献
 
