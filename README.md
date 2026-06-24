@@ -14,6 +14,7 @@ Birthday Starlight is a browser-only astronomy web app. Enter a birth date, time
 - Uses IANA time zones for birth and observing locations.
 - Lets users pick an observing coordinate on an OpenStreetMap map or enter coordinates manually.
 - Offers equipment levels from naked-eye dark-sky observing to advanced civilian imaging setups.
+- Exports selected targets as `.ics` calendar reminders for personal calendar apps.
 - Runs fully in the browser with no account system, no backend, and no visitor data upload.
 - Includes a GitHub Actions workflow for publishing the static site to GitHub Pages.
 - Includes a Python script and manual workflow for rebuilding the star catalog from the ESA Gaia Archive.
@@ -108,7 +109,7 @@ The repository is intended to be maintained through issues and pull requests. Di
 
 ## Roadmap
 
-- Email or calendar reminders for selected future birthday targets.
+- Optional email reminders or richer reminder scheduling for selected future birthday targets.
 - Moon phase, twilight, and altitude-window overlays for each candidate.
 - Optional weather checks when the target date enters a reliable forecast window.
 - Offline light-pollution lookup from a compressed public raster.
@@ -157,6 +158,7 @@ English version: [English](#birthday-starlight)
 - 使用 IANA 时区分别表示出生地和观测地时区。
 - 可以在 OpenStreetMap 地图上选择观测坐标，也可以手动输入经纬度。
 - 设备档位从肉眼暗空到进阶民用拍摄设备，按亮度极限和操作难度分级。
+- 可以把选中的目标导出为 `.ics` 日历提醒，导入个人日历应用。
 - 完全在浏览器中运行，没有账号系统、没有后端、不会上传访客输入。
 - 自带 GitHub Actions 工作流，可发布到 GitHub Pages。
 - 自带 Python 脚本和手动工作流，可从 ESA Gaia Archive 重建恒星星表。
@@ -251,7 +253,7 @@ distance_ly = 3261.563777 / parallax_mas
 
 ## 未来路线
 
-- 让用户为某个未来生日目标设置邮件或日历提醒。
+- 为未来生日目标加入可选邮件提醒或更丰富的提醒计划。
 - 为每个候选目标叠加月相、天文晨昏和高度窗口。
 - 当目标日期进入可靠预报窗口后，接入可选天气检查。
 - 使用压缩后的公开光污染栅格做离线查询。

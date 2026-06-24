@@ -538,7 +538,8 @@ button:focus-visible {
   margin-top: 14px;
 }
 
-.link-row a {
+.link-row a,
+.link-row button {
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 8px 10px;
@@ -547,6 +548,10 @@ button:focus-visible {
   background: var(--accent-soft);
   font-size: 13px;
   font-weight: 750;
+}
+
+.link-row button {
+  cursor: pointer;
 }
 
 .sky-chart {
