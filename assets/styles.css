@@ -333,6 +333,12 @@ button:focus-visible {
   font-weight: 750;
 }
 
+.form-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, auto);
+  gap: 10px;
+}
+
 .primary-action:active,
 .secondary-action:active,
 .year-cell:active,
@@ -579,6 +585,7 @@ button:focus-visible {
   .workspace,
   .field-pair,
   .map-toolbar,
+  .form-actions,
   .candidate-tabs,
   .metric-grid {
     grid-template-columns: 1fr;
