@@ -686,6 +686,96 @@ body[data-theme="mission"] .equipment-note {
   line-height: 1.55;
 }
 
+.weather-card {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: #fbfcf7;
+}
+
+.weather-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.weather-heading div {
+  display: grid;
+  gap: 4px;
+}
+
+.weather-heading span {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.weather-heading strong {
+  font-size: 16px;
+}
+
+.weather-button {
+  min-height: 38px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.weather-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.weather-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.weather-result-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.weather-result-grid div {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 9px;
+  background: #ffffff;
+}
+
+.weather-result-grid.good div {
+  border-left-color: var(--accent);
+}
+
+.weather-result-grid.mixed div {
+  border-left-color: #9a7b2f;
+}
+
+.weather-result-grid.bad div {
+  border-left-color: var(--warning);
+}
+
+.weather-result-grid span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.weather-result-grid strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
 .link-row {
   display: flex;
   flex-wrap: wrap;
@@ -736,7 +826,9 @@ body[data-theme="mission"] .equipment-note {
   .map-toolbar,
   .form-actions,
   .candidate-tabs,
-  .metric-grid {
+  .metric-grid,
+  .weather-heading,
+  .weather-result-grid {
     grid-template-columns: 1fr;
   }
 

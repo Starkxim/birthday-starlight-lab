@@ -115,7 +115,7 @@ The repository is intended to be maintained through issues and pull requests. Di
 
 ## Limitations
 
-- Weather cannot be forecast reliably years in advance. Always check cloud cover, transparency, moon phase, and local conditions shortly before observing.
+- Weather cannot be forecast reliably years in advance. The app can optionally query Open-Meteo when a target night is within the 16-day forecast window, but observers should still recheck cloud cover, transparency, moon phase, and local conditions shortly before observing.
 - Map search uses OpenStreetMap Nominatim and map tiles use OpenStreetMap. Users can avoid search by entering coordinates manually.
 - Light pollution is not computed from the map coordinate yet. A future version could use an offline light-pollution raster or a dedicated API.
 - Cross-identifications currently cover the generated SIMBAD overlay, defaulting to stars with Gaia G magnitude `<= 8.5`. Fainter candidates may still show Gaia DR3 designations.
@@ -128,6 +128,8 @@ The repository is intended to be maintained through issues and pull requests. Di
 - Mission and Fieldbook visual themes for different presentation styles.
 - Moon phase, twilight, and altitude-window overlays for candidate targets.
 - SIMBAD, HIP, and common-name overlay for the bright catalog layer, currently generated for stars with Gaia G magnitude `<= 8.5`.
+- Shareable result links that encode selected settings only, without accounts or server storage.
+- Optional Open-Meteo forecast checks when a target night falls inside the reliable forecast window.
 
 ## Roadmap
 
@@ -136,9 +138,8 @@ The roadmap is prioritized by user pain and reviewability. Each item should land
 | Priority | Feature | Why it matters |
 | --- | --- | --- |
 | P1 | Offline light-pollution lookup | Location selection is already coordinate-based, but the app still cannot estimate sky quality from that coordinate. This is a major observing-difficulty gap. |
-| P1 | Shareable result links | Users should be able to share a generated plan without accounts. The link should encode settings only, not store personal data. |
-| P2 | Optional weather checks near the target date | Weather is useful only inside a reliable forecast window, so this should be contextual rather than always-on. |
 | P2 | Calendar reminders and optional email reminders | Calendar export can stay static-site friendly. Email would introduce backend, abuse-prevention, and privacy work. |
+| P2 | Weather quality scoring refinements | Open-Meteo gives convenient forecast-window data; astronomy-specific transparency and seeing sources would make observing guidance sharper. |
 | P2 | Broader cross-identification coverage | The current alias layer keeps the static payload small by defaulting to Gaia G magnitude `<= 8.5`; fainter targets need a larger offline file or a lazy lookup strategy. |
 | P2 | Pull-request based catalog update workflow | The catalog rebuild workflow should produce reviewable changes through PRs, never write directly to `main`. The current manual artifact workflow is a safe baseline. |
 
@@ -163,9 +164,10 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE).
 
 - ESA Gaia mission and the Gaia Archive for Gaia DR3 astrometric and photometric data
 - CDS services such as SIMBAD and Aladin for astronomical identification and visualization tools
+- Open-Meteo for optional forecast-window weather data
 - GitHub Pages and GitHub Actions for free static-site publishing infrastructure
 
-This project is not affiliated with or endorsed by ESA, CDS, or GitHub.
+This project is not affiliated with or endorsed by ESA, CDS, Open-Meteo, or GitHub.
 
 ---
 
@@ -284,7 +286,7 @@ distance_ly = 3261.563777 / parallax_mas
 
 ## 限制
 
-- 天气无法提前多年可靠预测。实际观测前仍需检查云量、透明度、月相和本地天气。
+- 天气无法提前多年可靠预测。目标夜进入 16 天预报窗口后，页面可以选择性查询 Open-Meteo；实际观测前仍需再次检查云量、透明度、月相和本地天气。
 - 地图搜索使用 OpenStreetMap Nominatim，地图瓦片使用 OpenStreetMap。用户也可以不搜索地点，直接手动输入坐标。
 - 当前还没有根据地图坐标计算光污染。后续可以接入离线光污染栅格或专用 API。
 - 交叉标识目前覆盖生成的 SIMBAD 别名层，默认到 Gaia G 星等 `<= 8.5`。更暗的候选目标可能仍显示 Gaia DR3 designation。
@@ -297,6 +299,8 @@ distance_ly = 3261.563777 / parallax_mas
 - 提供 Mission 与 Fieldbook 两套视觉主题。
 - 为候选目标叠加月相、天文晨昏和高度窗口。
 - 为亮星表层加入 SIMBAD、HIP 和常用名别名，当前默认覆盖 Gaia G 星等 `<= 8.5` 的目标。
+- 生成只编码用户选择、不需要账号和服务器存储的分享链接。
+- 当目标夜进入可靠预报窗口后，可选择查询 Open-Meteo 天气预报。
 
 ## 未来路线
 
@@ -305,9 +309,8 @@ distance_ly = 3261.563777 / parallax_mas
 | 优先级 | 功能 | 为什么重要 |
 | --- | --- | --- |
 | P1 | 使用离线光污染数据按坐标估算天空质量 | 现在已经支持地图选点，但还不能根据坐标判断光污染，这是拍摄难度判断里的明显缺口。 |
-| P1 | 生成可分享结果链接 | 用户应该能分享自己的星光计划，但不需要账号。链接只编码选择项，不保存个人数据。 |
-| P2 | 目标日期临近时接入可选天气检查 | 天气只在可靠预报窗口内有意义，所以应该做成临近日期才出现的上下文功能。 |
 | P2 | 日历提醒与可选邮件提醒 | 日历导出仍然适合静态网站；邮件会引入后端、防滥用和隐私问题。 |
+| P2 | 改进天气质量评分 | Open-Meteo 已能提供预报窗口内的天气数据；如果加入更贴近天文观测的透明度和视宁度来源，建议会更准确。 |
 | P2 | 扩展更暗目标的交叉标识覆盖 | 当前别名层为了控制静态文件体积，默认覆盖 Gaia G 星等 `<= 8.5`；更暗目标需要更大的离线文件或按需查询策略。 |
 | P2 | 用 pull request 更新星表 | 星表重建应产生可 review 的变更，而不是直接写入 `main`。当前手动 artifact 工作流已经是安全基线。 |
 
@@ -332,6 +335,7 @@ distance_ly = 3261.563777 / parallax_mas
 
 - ESA Gaia mission 与 Gaia Archive 提供 Gaia DR3 天体测量和测光数据
 - CDS 的 SIMBAD、Aladin 等服务提供天体识别和可视化工具
+- Open-Meteo 提供可选的预报窗口天气数据
 - GitHub Pages 与 GitHub Actions 提供静态网站发布基础设施
 
-本项目与 ESA、CDS、GitHub 无隶属或背书关系。
+本项目与 ESA、CDS、Open-Meteo、GitHub 无隶属或背书关系。
