@@ -1,13 +1,20 @@
-name: Build Gaia star catalog
+name: Update Gaia star catalog
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "24 3 1 * *"
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: catalog-update
+  cancel-in-progress: false
 
 jobs:
-  build-catalog:
+  update-catalog:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -18,11 +25,59 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Rebuild catalog from Gaia Archive
-        run: python scripts/build_catalog.py --max-distance-ly 150 --max-g-mag 14 --min-parallax-over-error 20 --output data/star-catalog.json
+      - name: Rebuild Gaia catalog
+        run: >
+          python scripts/build_catalog.py
+          --max-distance-ly 150
+          --max-g-mag 14
+          --min-parallax-over-error 20
+          --output data/star-catalog.json
 
-      - name: Upload rebuilt catalog
-        uses: actions/upload-artifact@v4
-        with:
-          name: star-catalog
-          path: data/star-catalog.json
+      - name: Rebuild SIMBAD aliases
+        run: >
+          python scripts/build_cross_identifications.py
+          --catalog data/star-catalog.json
+          --max-g-mag 8.5
+          --output data/star-crossids.json
+
+      - name: Ignore timestamp-only rebuilds
+        run: >
+          python scripts/preserve_generated_at_if_unchanged.py
+          data/star-catalog.json
+          data/star-crossids.json
+
+      - name: Check for catalog changes
+        id: diff
+        run: |
+          if git diff --quiet -- data/star-catalog.json data/star-crossids.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit rebuilt catalog
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          branch="automation/catalog-update-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add data/star-catalog.json data/star-crossids.json
+          git commit -m "Update Gaia star catalog"
+          git push --set-upstream origin "$branch"
+          echo "CATALOG_BRANCH=$branch" >> "$GITHUB_ENV"
+
+      - name: Open pull request
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr create \
+            --base main \
+            --head "$CATALOG_BRANCH" \
+            --title "Update Gaia star catalog" \
+            --body "Automated Gaia DR3 catalog and SIMBAD alias refresh. Review the JSON diff before merging."
+
+      - name: No catalog changes
+        if: steps.diff.outputs.changed != 'true'
+        run: echo "Gaia catalog and SIMBAD aliases are unchanged."

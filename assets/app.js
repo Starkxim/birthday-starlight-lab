@@ -78,6 +78,503 @@ const STAR_COLORS = {
   unknown: "#dfe5dc",
 };
 
+const I18N = {
+  zh: {
+    meta: {
+      title: "Birthday Starlight",
+      description: "寻找未来某个生日夜晚，当年从恒星出发的光抵达地球。",
+    },
+    header: {
+      kicker: "Gaia DR3 近邻恒星",
+      subtitle: "输入出生时刻和观测地点，寻找那束从恒星出发、在未来生日附近抵达地球的光。",
+      languageToggle: "切换语言",
+      themeToggle: "切换页面样式",
+    },
+    steps: {
+      aria: "流程进度",
+      inputTitle: "选择参数",
+      inputHint: "生日、地点和设备",
+      yearsTitle: "选择年份",
+      yearsHint: "找一个生日夜晚",
+      targetTitle: "查看星星",
+      targetHint: "位置和拍摄建议",
+    },
+    form: {
+      eyebrow: "Observation brief",
+      title: "生日与观测条件",
+      lead: "先告诉我你出生的那一刻，以及你准备在哪里看这束光。",
+      birthDate: "出生日期",
+      birthTime: "出生时间",
+      birthTimeZone: "出生地时区",
+      observerTimeZone: "观测地时区",
+      placeSearch: "搜索观测地点",
+      placePlaceholder: "例如: Tokyo, Mauna Kea, 北京",
+      locate: "定位",
+      locating: "查找中",
+      mapLabel: "选择观测地点的地图",
+      mapNote: "点击地图或拖动标记选择观测点。页面不会自动读取你的定位；地名搜索使用 OpenStreetMap Nominatim。",
+      mapUnavailable: "地图资源没有载入。你仍然可以手动输入纬度和经度。",
+      latitude: "纬度",
+      longitude: "经度",
+      equipment: "设备档位",
+      horizon: "未来年份数",
+      generate: "生成生日星光",
+      share: "复制分享链接",
+    },
+    equipment: {
+      naked: {
+        label: "肉眼暗空",
+        short: "低成本，难点是找暗场和避开月光。",
+        price: "0 元，但需要真正暗的天空",
+        skill: "入门，重点是暗适应和辨认星座",
+        note: "适合在 Bortle 1-3 暗空下尝试。城市里肉眼极限会显著变差，接近 G5 的目标并不稳。",
+      },
+      binoculars: {
+        label: "双筒望远镜",
+        short: "入门友好，适合 7x50 或 10x50。",
+        price: "约 300-1500 元",
+        skill: "入门到轻度练习，需要会按星图跳星",
+        note: "7x50 或 10x50 双筒可以覆盖较宽视场，适合先用亮星定位，再确认较暗目标。",
+      },
+      camera_fixed: {
+        label: "相机固定三脚架",
+        short: "短曝光多张堆栈，适合宽一点的视场。",
+        price: "已有相机时成本较低",
+        skill: "需要会手动曝光、对焦和多张堆栈",
+        note: "使用广角到中焦短曝光，拍多张后堆栈。长焦固定三脚架会受地球自转拖线限制。",
+      },
+      telephoto_tracker: {
+        label: "长焦加星野赤道仪",
+        short: "200-600mm，极轴和堆栈开始重要。",
+        price: "约 3000-15000 元，取决于镜头和赤道仪",
+        skill: "中等，需要极轴、构图和堆栈处理",
+        note: "200-600mm 镜头加轻量赤道仪是长焦恒星拍摄的甜点位，时间候选可以放暗一些。",
+      },
+      small_scope: {
+        label: "小望远镜深空入门",
+        short: "GoTo、导星或短曝光堆栈，时间可更准。",
+        price: "约 8000-30000 元",
+        skill: "进阶，需要 GoTo、导星或短曝光堆栈",
+        note: "允许更暗但时间更准的恒星。建议先在 Stellarium 或 Aladin 里确认视场和邻近亮星。",
+      },
+      advanced: {
+        label: "进阶民用设备",
+        short: "更依赖天气、校准和后期，不需要专业台站。",
+        price: "约 30000 元以上，仍属于民用设备范围",
+        skill: "进阶，需要稳定跟踪、校准帧和后期经验",
+        note: "接近当前星表亮度下限。真正瓶颈通常是透明度、月光、跟踪精度和后期信噪比。",
+      },
+    },
+    nav: {
+      backToInput: "返回修改参数",
+      viewSelected: "查看选中的星星",
+      backToYears: "返回选择年份",
+      editInputs: "重新选择参数",
+    },
+    years: {
+      eyebrow: "Year overview",
+      title: "选择一个生日年份",
+      lead: "每个方块代表那一年生日附近的一次候选观测机会。",
+      waiting: "等待输入生日。",
+      summary: "<strong>{count} 颗 Gaia DR3 恒星</strong>，约 {distance} 光年内，G≤{mag}。",
+      location: "观测点：{name} ({lat}°, {lon}°)。{light}",
+      equipment: "设备：{label}，候选上限 G≤{maxMag}，亮星优先 G≤{easyMag}。",
+      noCandidate: "无候选",
+      none: "无",
+      precision: "最准 {value}",
+      bright: "最亮 {value}",
+    },
+    target: {
+      eyebrow: "Selected target",
+      title: "你的生日星光",
+      lead: "先看核心答案；需要科学细节时再展开。",
+      empty: "生成后选择一个年份和候选星。",
+      bestPhoto: "拍摄最稳",
+      bestTiming: "时间最准",
+      publicIntro: "{date} 这个生日夜，可以试着寻找 {star}。",
+      starCardTitle: "哪颗星",
+      arrivalCardTitle: "这束光何时抵达",
+      whereCardTitle: "在哪里看",
+      shootCardTitle: "怎么拍",
+      starCardBody: "{subtitle}",
+      arrivalCardBody: "它大约在 {arrival} 抵达地球，和生日目标相差 {delta}。",
+      whereCardBody: "最佳窗口约 {time}，看向 {azLabel} 方位，高度约 {alt}°。",
+      shootCardBody: "按你选的设备档位：{equipment}。{note}",
+      simpleNote: "正式拍摄前再用 Stellarium 或天文历核对构图、月光和天气。",
+      details: "查看科学细节",
+      metricArrival: "抵达时刻",
+      metricBirthday: "生日目标",
+      metricDelta: "时间偏差",
+      metricDistance: "距离范围",
+      metricBrightness: "亮度和颜色",
+      metricWindow: "最佳窗口",
+      metricIds: "交叉标识",
+      metricDark: "暗夜可拍",
+      metricMoon: "月相和月高",
+      metricCoords: "坐标",
+      metricDirection: "方位",
+      distanceRange: "{min} 到 {max} 光年",
+      brightnessColor: "G {mag}，{color}",
+      windowValue: "{time}，高度 {alt}°",
+      coordsValue: "RA {ra}°，Dec {dec}°",
+      directionValue: "{label} {az}°",
+      parallaxNote: "视差不确定性对应抵达范围：{start} 到 {end}。",
+      findingNote: "找星时可在 Stellarium 或 Aladin 中输入 Gaia source_id：{id}，再核对相机视场。",
+      ephemerisNote: "太阳和月亮位置为浏览器端近似星历，用于初筛月光和暮光；正式拍摄前请再用 Stellarium 或天文历核对。",
+      skyWaiting: "等待目标",
+      skyHorizon: "0° 地平线",
+      skyAltAz: "高度 {alt}° · 方位 {az}°",
+      calendar: "日历提醒",
+    },
+    tabs: {
+      precision: "时间最准",
+      bright: "拍摄最稳",
+      unavailable: "暂无候选",
+    },
+    links: {
+      simbad: "SIMBAD",
+      aladin: "Aladin",
+      gaia: "Gaia Archive",
+    },
+    weather: {
+      title: "目标夜天气",
+      eyebrow: "Weather check",
+      button: "查询目标夜天气",
+      loading: "查询中",
+      loadingText: "正在从 Open-Meteo 获取逐小时预报。",
+      retry: "重新查询天气",
+      unavailablePast: "这个最佳窗口已经不在未来预报范围内。请以实际观测前的天气为准。",
+      unavailableFuture: "目标夜距离现在超过 16 天，天气预报还不可靠；临近拍摄前再查询。",
+      available: "目标夜已进入 16 天预报窗口，可查询云量、降水概率、能见度和风。",
+      fetchFailed: "天气查询失败：{message}。",
+      noData: "预报数据为空",
+      good: "条件较适合拍摄",
+      mixed: "条件一般，需要临近复核",
+      bad: "不推荐拍摄",
+      summary: "{grade}。预报时间 {time}，距离最佳窗口约 {hours}。",
+      cloud: "云量",
+      precip: "降水概率",
+      visibility: "能见度",
+      wind: "风速/阵风",
+      temp: "温度",
+      humidity: "湿度",
+      unknown: "未知",
+      futureNote: "目标日期距离现在超过常规可靠天气预报窗口，多年后的云量只能临近拍摄前再确认。",
+      nearNote: "目标日期已进入常规天气预报窗口，可在拍摄前再查云量、透明度、风和月相。",
+    },
+    status: {
+      catalogLoading: "载入星表中",
+      catalogFailed: "Catalog failed",
+      catalogFailedBody: "无法读取 <code>data/star-catalog.json</code>。请通过本地服务器或 GitHub Pages 打开页面。",
+      catalogLoaded: "{count} stars",
+      catalogNames: "{count} names",
+      defaultLocationName: "未命名观测点",
+      defaultLight: "未估算光污染，请结合本地光害地图确认。",
+      mapPick: "地图选点",
+      shareCopied: "分享链接已复制。",
+      shareUpdated: "链接已更新到地址栏，可以手动复制。",
+      shareFailed: "无法生成分享链接。",
+      noPlace: "没有找到这个地点，请换一个名称或手动输入坐标。",
+      invalidBirthTz: "出生地时区无效，请使用类似 Asia/Shanghai 的 IANA 时区。",
+      invalidObsTz: "观测地时区无效，请使用类似 Asia/Shanghai 的 IANA 时区。",
+      invalidLat: "纬度必须在 -90 到 90 之间。",
+      invalidLon: "经度必须在 -180 到 180 之间。",
+      outOfCatalog: "星表覆盖约 {min} 到 {max} 光年；这个生日窗口需要 {target} 光年。",
+      candidates: "{count} 个可见候选进入筛选",
+      noVisibleCandidate: "没有找到满足高度和设备限制的候选",
+    },
+    observing: {
+      moonText: "{phase}，照明约 {illumination}%",
+      moonAbove: "，月亮高度 {alt}°",
+      moonBelow: "，月亮在地平线下",
+      noOverlap: "目标高度与天文夜无重叠",
+      noTargetWindow: "目标没有高于 {minAlt}° 的窗口",
+      noDark: "无天文夜，太阳最低 {sunAlt}°",
+      summaryGood: "观测夜 {date}：天文夜 {dark}；目标高于 {minAlt}° 的窗口 {target}；暗夜内最佳约 {time}，目标高度 {targetAlt}°，太阳高度 {sunAlt}°。",
+      summaryMixed: "观测夜 {date}：天文夜 {dark}；目标高于 {minAlt}° 的窗口 {target}；两者暂未重叠，可以改用相邻日期、降低最低高度或选择更亮候选。",
+    },
+    phase: {
+      new: "新月",
+      crescent: "蛾眉月",
+      firstQuarter: "上弦前后",
+      waxingGibbous: "盈凸月",
+      full: "满月前后",
+      waningGibbous: "亏凸月",
+      lastQuarter: "下弦前后",
+      balsamic: "残月",
+    },
+    color: {
+      "blue-white": "蓝白色",
+      white: "白色",
+      "yellow-white": "黄白色",
+      orange: "橙色",
+      red: "红色",
+      unknown: "颜色未知",
+    },
+    direction: ["北", "东北", "东", "东南", "南", "西南", "西", "西北"],
+    delta: {
+      same: "几乎同刻",
+      late: "晚",
+      early: "早",
+      hours: "{dir} {value} 小时",
+      days: "{dir} {value} 天",
+      months: "{dir} {value} 个月",
+    },
+    hours: {
+      zero: "0 小时",
+      late: "晚 {value} 小时",
+      early: "早 {value} 小时",
+    },
+  },
+  en: {
+    meta: {
+      title: "Birthday Starlight",
+      description: "Find a future birthday night when light that left a nearby star around your birth moment reaches Earth.",
+    },
+    header: {
+      kicker: "Gaia DR3 nearby stars",
+      subtitle: "Enter a birth moment and observing place to find starlight that may arrive near a future birthday.",
+      languageToggle: "Change language",
+      themeToggle: "Change visual style",
+    },
+    steps: {
+      aria: "Progress",
+      inputTitle: "Set up",
+      inputHint: "Birth, place, equipment",
+      yearsTitle: "Pick a year",
+      yearsHint: "Choose a birthday night",
+      targetTitle: "Meet the star",
+      targetHint: "Where and how to shoot",
+    },
+    form: {
+      eyebrow: "Observation brief",
+      title: "Birth and observing setup",
+      lead: "Start with the moment you were born and the place you plan to observe from.",
+      birthDate: "Birth date",
+      birthTime: "Birth time",
+      birthTimeZone: "Birth time zone",
+      observerTimeZone: "Observer time zone",
+      placeSearch: "Search observing place",
+      placePlaceholder: "Example: Tokyo, Mauna Kea, Beijing",
+      locate: "Locate",
+      locating: "Searching",
+      mapLabel: "Map for choosing an observing location",
+      mapNote: "Click the map or drag the marker to choose a site. The page never reads your device location automatically. Place search uses OpenStreetMap Nominatim.",
+      mapUnavailable: "Map assets did not load. You can still enter latitude and longitude manually.",
+      latitude: "Latitude",
+      longitude: "Longitude",
+      equipment: "Equipment level",
+      horizon: "Future years",
+      generate: "Find my starlight",
+      share: "Copy share link",
+    },
+    equipment: {
+      naked: {
+        label: "Naked eye, dark sky",
+        short: "Lowest cost. The hard part is finding dark sky and avoiding moonlight.",
+        price: "No extra gear, but truly dark sky is needed",
+        skill: "Beginner. Dark adaptation and constellation recognition matter.",
+        note: "Best in Bortle 1-3 skies. City skies make near-G5 targets much less reliable.",
+      },
+      binoculars: {
+        label: "Binoculars",
+        short: "Beginner friendly. Good for 7x50 or 10x50 binoculars.",
+        price: "Roughly 300-1500 CNY",
+        skill: "Beginner to light practice. You will need basic star-hopping.",
+        note: "7x50 or 10x50 binoculars give a wide field. Start from brighter stars, then confirm the fainter target.",
+      },
+      camera_fixed: {
+        label: "Camera on fixed tripod",
+        short: "Short exposures and stacking. Better with a wider field.",
+        price: "Low cost if you already own a camera",
+        skill: "Manual exposure, manual focus, and stacking are needed.",
+        note: "Use wide to medium lenses and stack many short exposures. Long lenses on a fixed tripod are limited by star trails.",
+      },
+      telephoto_tracker: {
+        label: "Telephoto with star tracker",
+        short: "200-600mm. Polar alignment and stacking start to matter.",
+        price: "Roughly 3000-15000 CNY depending on lens and tracker",
+        skill: "Intermediate. Polar alignment, framing, and stacking matter.",
+        note: "A 200-600mm lens on a light tracker is the sweet spot for telephoto star imaging.",
+      },
+      small_scope: {
+        label: "Small telescope setup",
+        short: "GoTo, guiding, or stacked short exposures. Timing can be tighter.",
+        price: "Roughly 8000-30000 CNY",
+        skill: "Advanced beginner. GoTo, guiding, or careful short-exposure stacking helps.",
+        note: "Allows fainter but better-timed stars. Confirm field of view and nearby guide stars in Stellarium or Aladin.",
+      },
+      advanced: {
+        label: "Advanced civilian setup",
+        short: "More dependent on weather, calibration, and processing. No professional observatory required.",
+        price: "Roughly 30000 CNY and above",
+        skill: "Advanced. Stable tracking, calibration frames, and processing experience matter.",
+        note: "Near the current catalog limit. The real bottlenecks are transparency, moonlight, tracking, and post-processing signal-to-noise.",
+      },
+    },
+    nav: {
+      backToInput: "Back to setup",
+      viewSelected: "View selected star",
+      backToYears: "Back to years",
+      editInputs: "Edit setup",
+    },
+    years: {
+      eyebrow: "Year overview",
+      title: "Choose a birthday year",
+      lead: "Each tile is one possible observing night near that birthday.",
+      waiting: "Waiting for your birth details.",
+      summary: "<strong>{count} Gaia DR3 stars</strong>, within about {distance} light-years, G≤{mag}.",
+      location: "Observing site: {name} ({lat}°, {lon}°). {light}",
+      equipment: "Equipment: {label}. Candidate limit G≤{maxMag}; easier target priority G≤{easyMag}.",
+      noCandidate: "No candidate",
+      none: "None",
+      precision: "Closest {value}",
+      bright: "Brightest {value}",
+    },
+    target: {
+      eyebrow: "Selected target",
+      title: "Your birthday starlight",
+      lead: "Start with the plain-language answer. Open the science details if you want the full numbers.",
+      empty: "Generate results, then choose a year and a candidate star.",
+      bestPhoto: "Easiest to image",
+      bestTiming: "Closest timing",
+      publicIntro: "On the birthday night of {date}, try looking for {star}.",
+      starCardTitle: "Which star",
+      arrivalCardTitle: "When the light arrives",
+      whereCardTitle: "Where to look",
+      shootCardTitle: "How to shoot it",
+      starCardBody: "{subtitle}",
+      arrivalCardBody: "The light is estimated to reach Earth around {arrival}, offset from the birthday target by {delta}.",
+      whereCardBody: "Best window around {time}. Look {azLabel}, about {alt}° above the horizon.",
+      shootCardBody: "For your selected gear: {equipment}. {note}",
+      simpleNote: "Before a real shoot, confirm framing, moonlight, and weather in Stellarium or an astronomy almanac.",
+      details: "Show science details",
+      metricArrival: "Arrival time",
+      metricBirthday: "Birthday target",
+      metricDelta: "Timing offset",
+      metricDistance: "Distance range",
+      metricBrightness: "Brightness and color",
+      metricWindow: "Best window",
+      metricIds: "Cross IDs",
+      metricDark: "Dark-sky window",
+      metricMoon: "Moon phase and height",
+      metricCoords: "Coordinates",
+      metricDirection: "Direction",
+      distanceRange: "{min} to {max} light-years",
+      brightnessColor: "G {mag}, {color}",
+      windowValue: "{time}, altitude {alt}°",
+      coordsValue: "RA {ra}°, Dec {dec}°",
+      directionValue: "{label} {az}°",
+      parallaxNote: "Parallax uncertainty gives this arrival range: {start} to {end}.",
+      findingNote: "In Stellarium or Aladin, search Gaia source_id {id}, then confirm the camera field.",
+      ephemerisNote: "Sun and Moon positions are browser-side approximations for first-pass twilight and moonlight checks. Recheck in Stellarium or an astronomy almanac before shooting.",
+      skyWaiting: "Waiting for a target",
+      skyHorizon: "0° horizon",
+      skyAltAz: "Alt {alt}° · Az {az}°",
+      calendar: "Calendar reminder",
+    },
+    tabs: {
+      precision: "Closest timing",
+      bright: "Easiest to image",
+      unavailable: "No candidate",
+    },
+    links: {
+      simbad: "SIMBAD",
+      aladin: "Aladin",
+      gaia: "Gaia Archive",
+    },
+    weather: {
+      title: "Target-night weather",
+      eyebrow: "Weather check",
+      button: "Check target-night weather",
+      loading: "Checking",
+      loadingText: "Fetching hourly forecast from Open-Meteo.",
+      retry: "Check again",
+      unavailablePast: "This observing window is no longer in the future forecast range. Use the actual conditions near observing time.",
+      unavailableFuture: "The target night is more than 16 days away. Weather forecasts are not reliable yet. Check again near the shoot.",
+      available: "The target night is inside the 16-day forecast window. You can check cloud cover, precipitation chance, visibility, and wind.",
+      fetchFailed: "Weather check failed: {message}.",
+      noData: "Forecast data is empty",
+      good: "Good enough to try",
+      mixed: "Mixed conditions, recheck near the night",
+      bad: "Not recommended",
+      summary: "{grade}. Forecast time {time}, about {hours} from the best window.",
+      cloud: "Cloud",
+      precip: "Precipitation",
+      visibility: "Visibility",
+      wind: "Wind/gusts",
+      temp: "Temperature",
+      humidity: "Humidity",
+      unknown: "Unknown",
+      futureNote: "The target date is outside the reliable forecast window. Cloud cover years in advance must be checked shortly before observing.",
+      nearNote: "The target date is inside the normal forecast window. Recheck cloud cover, transparency, wind, and moonlight before shooting.",
+    },
+    status: {
+      catalogLoading: "Loading catalog",
+      catalogFailed: "Catalog failed",
+      catalogFailedBody: "Could not read <code>data/star-catalog.json</code>. Open the app through a local server or GitHub Pages.",
+      catalogLoaded: "{count} stars",
+      catalogNames: "{count} names",
+      defaultLocationName: "Unnamed observing site",
+      defaultLight: "Light pollution is not estimated yet. Check a local light-pollution map.",
+      mapPick: "Map point",
+      shareCopied: "Share link copied.",
+      shareUpdated: "The link is updated in the address bar. You can copy it manually.",
+      shareFailed: "Could not create a share link.",
+      noPlace: "No place found. Try another name or enter coordinates manually.",
+      invalidBirthTz: "Birth time zone is invalid. Use an IANA time zone such as Asia/Shanghai.",
+      invalidObsTz: "Observer time zone is invalid. Use an IANA time zone such as Asia/Shanghai.",
+      invalidLat: "Latitude must be between -90 and 90.",
+      invalidLon: "Longitude must be between -180 and 180.",
+      outOfCatalog: "The catalog covers about {min} to {max} light-years. This birthday window needs {target} light-years.",
+      candidates: "{count} visible candidates passed the filters",
+      noVisibleCandidate: "No candidate met the altitude and equipment limits",
+    },
+    observing: {
+      moonText: "{phase}, about {illumination}% illuminated",
+      moonAbove: ", Moon altitude {alt}°",
+      moonBelow: ", Moon below the horizon",
+      noOverlap: "No overlap between target altitude and astronomical night",
+      noTargetWindow: "Target never rises above {minAlt}°",
+      noDark: "No astronomical night, lowest Sun altitude {sunAlt}°",
+      summaryGood: "Observing night {date}: astronomical night {dark}; target above {minAlt}° during {target}; best dark-window time around {time}, target altitude {targetAlt}°, Sun altitude {sunAlt}°.",
+      summaryMixed: "Observing night {date}: astronomical night {dark}; target above {minAlt}° during {target}; they do not overlap yet. Try a nearby date, lower minimum altitude, or choose a brighter candidate.",
+    },
+    phase: {
+      new: "New Moon",
+      crescent: "Crescent Moon",
+      firstQuarter: "Near first quarter",
+      waxingGibbous: "Waxing gibbous",
+      full: "Near full Moon",
+      waningGibbous: "Waning gibbous",
+      lastQuarter: "Near last quarter",
+      balsamic: "Old crescent Moon",
+    },
+    color: {
+      "blue-white": "blue-white",
+      white: "white",
+      "yellow-white": "yellow-white",
+      orange: "orange",
+      red: "red",
+      unknown: "unknown color",
+    },
+    direction: ["north", "northeast", "east", "southeast", "south", "southwest", "west", "northwest"],
+    delta: {
+      same: "almost exact",
+      late: "late",
+      early: "early",
+      hours: "{value} hours {dir}",
+      days: "{value} days {dir}",
+      months: "{value} months {dir}",
+    },
+    hours: {
+      zero: "0 hours",
+      late: "{value} hours later",
+      early: "{value} hours earlier",
+    },
+  },
+};
+
 const app = {
   catalog: null,
   crossIds: {},
@@ -86,6 +583,9 @@ const app = {
   results: [],
   selectedIndex: 0,
   selectedKind: "precision",
+  step: "input",
+  lang: "zh",
+  hasSharedState: false,
   currentForm: null,
   map: null,
   marker: null,
@@ -96,15 +596,104 @@ const $ = (id) => document.getElementById(id);
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
+  initLanguage();
   initTheme();
   populateTimeZones();
   setDefaultForm();
-  applySharedState();
+  app.hasSharedState = applySharedState();
   bindControls();
   initMap();
   drawStarscape();
+  setStep("input");
+  applyLanguage();
   await loadCatalog();
-  $("birthForm").dispatchEvent(new Event("submit", { cancelable: true }));
+  if (app.hasSharedState) {
+    $("birthForm").dispatchEvent(new Event("submit", { cancelable: true }));
+  } else {
+    renderEmptyState();
+  }
+}
+
+function initLanguage() {
+  const params = new URLSearchParams(window.location.search);
+  const requested = params.get("lang") || localStorage.getItem("birthday-starlight-lang") || navigator.language;
+  app.lang = String(requested).toLowerCase().startsWith("en") ? "en" : "zh";
+}
+
+function setLanguage(lang) {
+  app.lang = lang === "en" ? "en" : "zh";
+  localStorage.setItem("birthday-starlight-lang", app.lang);
+  applyLanguage();
+  if (app.catalog) updateCatalogStatus();
+  if (app.currentForm && app.catalog) {
+    app.currentForm = readForm();
+    app.results = computeResults(app.currentForm);
+  }
+  if (app.results.length) {
+    renderResults({ preserveStep: true });
+  } else {
+    renderEmptyState();
+  }
+  if (app.currentForm) updateShareUrl(app.currentForm);
+}
+
+function t(key, values = {}) {
+  const text = getTranslation(app.lang, key) ?? getTranslation("zh", key) ?? key;
+  if (Array.isArray(text)) return text;
+  return String(text).replace(/\{(\w+)\}/g, (_, name) => values[name] ?? "");
+}
+
+function getTranslation(lang, key) {
+  return key.split(".").reduce((value, part) => value?.[part], I18N[lang]);
+}
+
+function applyLanguage() {
+  document.documentElement.lang = app.lang === "en" ? "en" : "zh-CN";
+  document.title = t("meta.title");
+  document.querySelector('meta[name="description"]')?.setAttribute("content", t("meta.description"));
+  document.querySelectorAll("[data-i18n]").forEach((node) => {
+    node.textContent = t(node.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => {
+    node.setAttribute("placeholder", t(node.dataset.i18nPlaceholder));
+  });
+  document.querySelectorAll("[data-i18n-aria-label]").forEach((node) => {
+    node.setAttribute("aria-label", t(node.dataset.i18nAriaLabel));
+  });
+  document.querySelectorAll("[data-lang-choice]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.langChoice === app.lang));
+  });
+  if (!app.catalog && $("catalogStatus")) {
+    $("catalogStatus").textContent = t("status.catalogLoading");
+  }
+}
+
+function setStep(step) {
+  const allowed = ["input", "years", "target"];
+  app.step = allowed.includes(step) ? step : "input";
+  document.querySelectorAll("[data-step-panel]").forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.stepPanel === app.step);
+  });
+  document.querySelectorAll("[data-step-target]").forEach((button) => {
+    const target = button.dataset.stepTarget;
+    const enabled =
+      target === "input" ||
+      (target === "years" && app.results.length > 0) ||
+      (target === "target" && Boolean(currentRecord()));
+    button.disabled = !enabled;
+    button.classList.toggle("active", target === app.step);
+  });
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function currentRecord() {
+  const result = app.results[app.selectedIndex];
+  return result ? result[app.selectedKind] || result.precision || result.bright : null;
+}
+
+function equipmentText(equipment, field) {
+  const key = equipmentKeyFor(equipment);
+  return t(`equipment.${key}.${field}`);
 }
 
 function populateTimeZones() {
@@ -124,8 +713,18 @@ function setDefaultForm() {
 }
 
 function bindControls() {
+  document.querySelectorAll("[data-lang-choice]").forEach((button) => {
+    button.addEventListener("click", () => setLanguage(button.dataset.langChoice));
+  });
+
   document.querySelectorAll("[data-theme-choice]").forEach((button) => {
     button.addEventListener("click", () => setTheme(button.dataset.themeChoice));
+  });
+
+  document.querySelectorAll("[data-step-target]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!button.disabled) setStep(button.dataset.stepTarget);
+    });
   });
 
   $("birthForm").addEventListener("submit", (event) => {
@@ -140,6 +739,7 @@ function bindControls() {
       app.selectedKind = "precision";
       updateShareUrl(form);
       renderResults();
+      setStep("years");
     } catch (error) {
       $("summary").innerHTML = `<span class="warning">${escapeHTML(error.message)}</span>`;
       console.error(error);
@@ -149,6 +749,10 @@ function bindControls() {
   $("latitude").addEventListener("change", syncMarkerFromFields);
   $("longitude").addEventListener("change", syncMarkerFromFields);
   $("shareButton").addEventListener("click", copyShareLink);
+  $("backToInput").addEventListener("click", () => setStep("input"));
+  $("goToTarget").addEventListener("click", () => setStep("target"));
+  $("backToYears").addEventListener("click", () => setStep("years"));
+  $("editInputs").addEventListener("click", () => setStep("input"));
   $("placeSearchButton").addEventListener("click", searchPlace);
   $("placeSearch").addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
@@ -174,7 +778,7 @@ function setTheme(theme) {
 
 function initMap() {
   if (!window.L || !$("map")) {
-    $("map").textContent = "地图资源没有载入。你仍然可以手动输入纬度和经度。";
+    $("map").textContent = t("form.mapUnavailable");
     return;
   }
 
@@ -195,14 +799,16 @@ function initMap() {
   app.marker = L.marker([startLat, startLon], { draggable: true }).addTo(app.map);
   app.marker.on("dragend", () => {
     const pos = app.marker.getLatLng();
-    setLocation(pos.lat, pos.lng, "地图选点");
+    setLocation(pos.lat, pos.lng, t("status.mapPick"));
   });
-  app.map.on("click", (event) => setLocation(event.latlng.lat, event.latlng.lng, "地图选点"));
+  app.map.on("click", (event) => setLocation(event.latlng.lat, event.latlng.lng, t("status.mapPick")));
 }
 
 function applySharedState() {
   const params = new URLSearchParams(window.location.search);
-  if (!params.size) return;
+  const sharedKeys = ["birth", "time", "birthTz", "obsTz", "lat", "lon", "years", "place", "equipment"];
+  const hasSharedState = sharedKeys.some((key) => params.has(key));
+  if (!hasSharedState) return false;
 
   setInputFromParam(params, "birthDate", "birth");
   setInputFromParam(params, "birthTime", "time");
@@ -218,6 +824,7 @@ function applySharedState() {
     const option = document.querySelector(`input[name="equipment"][value="${equipmentKey}"]`);
     if (option) option.checked = true;
   }
+  return true;
 }
 
 function setInputFromParam(params, inputId, paramName) {
@@ -231,15 +838,15 @@ async function copyShareLink() {
     const url = updateShareUrl(form);
     if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
     await navigator.clipboard.writeText(url);
-    setShareStatus("分享链接已复制。");
+    setShareStatus(t("status.shareCopied"));
   } catch (error) {
     if (error.name === "NotAllowedError" || error.name === "SecurityError" || error.message === "Clipboard unavailable") {
       const form = app.currentForm || readForm();
       updateShareUrl(form);
-      setShareStatus("链接已更新到地址栏，可以手动复制。");
+      setShareStatus(t("status.shareUpdated"));
       return;
     }
-    setShareStatus(error.message || "无法生成分享链接。", true);
+    setShareStatus(error.message || t("status.shareFailed"), true);
   }
 }
 
@@ -251,6 +858,7 @@ function updateShareUrl(form) {
 
 function buildShareUrl(form) {
   const params = new URLSearchParams();
+  params.set("lang", app.lang);
   params.set("birth", `${form.birthYear}-${pad2(form.birthMonth)}-${pad2(form.birthDay)}`);
   params.set("time", `${pad2(form.birthHour)}:${pad2(form.birthMinute)}`);
   params.set("birthTz", form.birthTimeZone);
@@ -259,8 +867,9 @@ function buildShareUrl(form) {
   params.set("lon", form.location.lon.toFixed(4));
   params.set("equipment", equipmentKeyFor(form.equipment));
   params.set("years", String(form.horizon));
-  if (form.location.name && form.location.name !== DEFAULT_LOCATION.name) {
-    params.set("place", form.location.name);
+  const placeValue = $("placeSearch").value.trim();
+  if (placeValue) {
+    params.set("place", placeValue);
   }
   return `${window.location.origin}${window.location.pathname}?${params.toString()}`;
 }
@@ -296,13 +905,13 @@ async function searchPlace() {
   if (!query) return;
 
   $("placeSearchButton").disabled = true;
-  $("placeSearchButton").textContent = "查找中";
+  $("placeSearchButton").textContent = t("form.locating");
   try {
     const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(query)}`;
     const response = await fetch(url);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const results = await response.json();
-    if (!results.length) throw new Error("没有找到这个地点，请换一个名称或手动输入坐标。");
+    if (!results.length) throw new Error(t("status.noPlace"));
     const place = results[0];
     const lat = Number(place.lat);
     const lon = Number(place.lon);
@@ -312,7 +921,7 @@ async function searchPlace() {
     $("summary").innerHTML = `<span class="warning">${escapeHTML(error.message)}</span>`;
   } finally {
     $("placeSearchButton").disabled = false;
-    $("placeSearchButton").textContent = "定位";
+    $("placeSearchButton").textContent = t("form.locate");
   }
 }
 
@@ -324,15 +933,21 @@ async function loadCatalog() {
     app.catalog = await response.json();
     app.stars = app.catalog.stars || [];
     await loadCrossIdentifications();
-    const meta = app.catalog.meta || {};
-    const aliasCount = app.crossMeta?.matchedCount || Object.keys(app.crossIds).length;
-    status.textContent = `${(meta.count || app.stars.length).toLocaleString()} stars` +
-      (aliasCount ? ` · ${aliasCount.toLocaleString()} names` : "");
+    updateCatalogStatus();
   } catch (error) {
-    status.textContent = "Catalog failed";
-    $("summary").innerHTML = `无法读取 <code>data/star-catalog.json</code>。请通过本地服务器或 GitHub Pages 打开页面。`;
+    status.textContent = t("status.catalogFailed");
+    $("summary").innerHTML = t("status.catalogFailedBody");
     console.error(error);
   }
+}
+
+function updateCatalogStatus() {
+  const status = $("catalogStatus");
+  const meta = app.catalog?.meta || {};
+  const aliasCount = app.crossMeta?.matchedCount || Object.keys(app.crossIds).length;
+  const catalogText = t("status.catalogLoaded", { count: (meta.count || app.stars.length).toLocaleString() });
+  const aliasText = aliasCount ? ` · ${t("status.catalogNames", { count: aliasCount.toLocaleString() })}` : "";
+  status.textContent = catalogText + aliasText;
 }
 
 async function loadCrossIdentifications() {
@@ -354,19 +969,19 @@ function readForm() {
   const [birthHour, birthMinute] = ($("birthTime").value || "12:00").split(":").map(Number);
   const birthTimeZone = $("birthTimeZone").value.trim();
   const observerTimeZone = $("observerTimeZone").value.trim();
-  if (!isValidTimeZone(birthTimeZone)) throw new Error("出生地时区无效，请使用类似 Asia/Shanghai 的 IANA 时区。");
-  if (!isValidTimeZone(observerTimeZone)) throw new Error("观测地时区无效，请使用类似 Asia/Shanghai 的 IANA 时区。");
+  if (!isValidTimeZone(birthTimeZone)) throw new Error(t("status.invalidBirthTz"));
+  if (!isValidTimeZone(observerTimeZone)) throw new Error(t("status.invalidObsTz"));
 
   const lat = Number($("latitude").value);
   const lon = Number($("longitude").value);
-  if (!Number.isFinite(lat) || lat < -90 || lat > 90) throw new Error("纬度必须在 -90 到 90 之间。");
-  if (!Number.isFinite(lon) || lon < -180 || lon > 180) throw new Error("经度必须在 -180 到 180 之间。");
+  if (!Number.isFinite(lat) || lat < -90 || lat > 90) throw new Error(t("status.invalidLat"));
+  if (!Number.isFinite(lon) || lon < -180 || lon > 180) throw new Error(t("status.invalidLon"));
 
   const equipmentKey = document.querySelector('input[name="equipment"]:checked')?.value || "naked";
   const equipment = EQUIPMENT[equipmentKey] || EQUIPMENT.naked;
   const horizon = clamp(Number($("horizon").value) || 20, 5, 50);
   const birthMs = zonedDateMs(birthYear, birthMonth, birthDay, birthHour, birthMinute, birthTimeZone);
-  const placeName = $("placeSearch").value.trim() || DEFAULT_LOCATION.name;
+  const placeName = $("placeSearch").value.trim() || t("status.defaultLocationName");
 
   return {
     birthYear,
@@ -381,7 +996,7 @@ function readForm() {
       name: placeName,
       lat,
       lon,
-      light: DEFAULT_LOCATION.light,
+      light: t("status.defaultLight"),
     },
     equipment,
     horizon,
@@ -418,7 +1033,11 @@ function computeYear(form, year, anniversary, targetMs, targetAgeYears) {
       targetAgeYears,
       precision: null,
       bright: null,
-      status: `星表覆盖约 ${minDistance.toFixed(1)} 到 ${maxDistance.toFixed(0)} 光年；这个生日窗口需要 ${targetAgeYears.toFixed(1)} 光年。`,
+      status: t("status.outOfCatalog", {
+        min: minDistance.toFixed(1),
+        max: maxDistance.toFixed(0),
+        target: targetAgeYears.toFixed(1),
+      }),
     };
   }
 
@@ -449,7 +1068,7 @@ function computeYear(form, year, anniversary, targetMs, targetAgeYears) {
     targetAgeYears,
     precision,
     bright,
-    status: records.length ? `${records.length} 个可见候选进入筛选` : "没有找到满足高度和设备限制的候选",
+    status: records.length ? t("status.candidates", { count: records.length }) : t("status.noVisibleCandidate"),
   };
 }
 
@@ -599,22 +1218,35 @@ function observingConditions(record, form) {
     Math.abs(sample.ms - record.visibility.timeMs) < Math.abs(best.ms - record.visibility.timeMs) ? sample : best
   ), samples[0]);
   const phase = moonPhase(moonSample.ms);
-  const moonText = `${phase.label}，照明约 ${phase.illuminationPercent}%` +
-    (moonSample.moonAlt >= 0 ? `，月亮高度 ${moonSample.moonAlt.toFixed(0)}°` : "，月亮在地平线下");
+  const moonText = t("observing.moonText", { phase: phase.label, illumination: phase.illuminationPercent }) +
+    (moonSample.moonAlt >= 0 ? t("observing.moonAbove", { alt: moonSample.moonAlt.toFixed(0) }) : t("observing.moonBelow"));
 
   const usableWindowText = usableWindows.length
     ? formatWindowList(usableWindows, form.observerTimeZone)
-    : "目标高度与天文夜无重叠";
+    : t("observing.noOverlap");
   const targetWindowText = targetWindows.length
     ? formatWindowList(targetWindows, form.observerTimeZone)
-    : `目标没有高于 ${minAlt}° 的窗口`;
+    : t("observing.noTargetWindow", { minAlt });
   const darkWindowText = darkWindows.length
     ? formatWindowList(darkWindows, form.observerTimeZone)
-    : `无天文夜，太阳最低 ${darkest.sunAlt.toFixed(0)}°`;
+    : t("observing.noDark", { sunAlt: darkest.sunAlt.toFixed(0) });
 
   const summary = bestUsable
-    ? `观测夜 ${bounds.label}：天文夜 ${darkWindowText}；目标高于 ${minAlt}° 的窗口 ${targetWindowText}；暗夜内最佳约 ${formatClock(bestUsable.ms, form.observerTimeZone)}，目标高度 ${bestUsable.targetAlt.toFixed(0)}°，太阳高度 ${bestUsable.sunAlt.toFixed(0)}°。`
-    : `观测夜 ${bounds.label}：天文夜 ${darkWindowText}；目标高于 ${minAlt}° 的窗口 ${targetWindowText}；两者暂未重叠，可以改用相邻日期、降低最低高度或选择更亮候选。`;
+    ? t("observing.summaryGood", {
+      date: bounds.label,
+      dark: darkWindowText,
+      minAlt,
+      target: targetWindowText,
+      time: formatClock(bestUsable.ms, form.observerTimeZone),
+      targetAlt: bestUsable.targetAlt.toFixed(0),
+      sunAlt: bestUsable.sunAlt.toFixed(0),
+    })
+    : t("observing.summaryMixed", {
+      date: bounds.label,
+      dark: darkWindowText,
+      minAlt,
+      target: targetWindowText,
+    });
 
   return {
     darkWindowText,
@@ -735,15 +1367,15 @@ function moonPhase(ms) {
 }
 
 function moonPhaseLabel(age) {
-  if (age < 1.84566) return "新月";
-  if (age < 5.53699) return "蛾眉月";
-  if (age < 9.22831) return "上弦前后";
-  if (age < 12.91963) return "盈凸月";
-  if (age < 16.61096) return "满月前后";
-  if (age < 20.30228) return "亏凸月";
-  if (age < 23.99361) return "下弦前后";
-  if (age < 27.68493) return "残月";
-  return "新月";
+  if (age < 1.84566) return t("phase.new");
+  if (age < 5.53699) return t("phase.crescent");
+  if (age < 9.22831) return t("phase.firstQuarter");
+  if (age < 12.91963) return t("phase.waxingGibbous");
+  if (age < 16.61096) return t("phase.full");
+  if (age < 20.30228) return t("phase.waningGibbous");
+  if (age < 23.99361) return t("phase.lastQuarter");
+  if (age < 27.68493) return t("phase.balsamic");
+  return t("phase.new");
 }
 
 function julianDay(ms) {
@@ -824,13 +1456,37 @@ function getZonedParts(ms, timeZone) {
   };
 }
 
-function renderResults() {
+function renderEmptyState() {
+  $("catalogStatus").textContent = app.catalog ? $("catalogStatus").textContent : t("status.catalogLoading");
+  $("summary").textContent = t("years.waiting");
+  $("yearGrid").innerHTML = "";
+  $("candidateTabs").innerHTML = "";
+  $("detail").innerHTML = `<p class="empty-state">${escapeHTML(t("target.empty"))}</p>`;
+  $("goToTarget").disabled = true;
+  drawSkyChart(null);
+  setStep(app.step);
+}
+
+function renderResults({ preserveStep = false } = {}) {
   const form = app.currentForm;
   const meta = app.catalog.meta || {};
   $("summary").innerHTML = [
-    `<strong>${(meta.count || app.stars.length).toLocaleString()} 颗 Gaia DR3 恒星</strong>，约 ${meta.maxDistanceLy || 150} 光年内，G≤${meta.maxGMag || 14}。`,
-    `观测点：${escapeHTML(form.location.name)} (${form.location.lat.toFixed(3)}°, ${form.location.lon.toFixed(3)}°)。${escapeHTML(form.location.light)}`,
-    `设备：${escapeHTML(form.equipment.label)}，候选上限 G≤${form.equipment.maxMag}，亮星优先 G≤${form.equipment.easyMag}。`,
+    t("years.summary", {
+      count: (meta.count || app.stars.length).toLocaleString(),
+      distance: meta.maxDistanceLy || 150,
+      mag: meta.maxGMag || 14,
+    }),
+    t("years.location", {
+      name: escapeHTML(form.location.name),
+      lat: form.location.lat.toFixed(3),
+      lon: form.location.lon.toFixed(3),
+      light: escapeHTML(form.location.light),
+    }),
+    t("years.equipment", {
+      label: escapeHTML(equipmentText(form.equipment, "label")),
+      maxMag: form.equipment.maxMag,
+      easyMag: form.equipment.easyMag,
+    }),
   ].join("<br>");
 
   const grid = $("yearGrid");
@@ -840,17 +1496,20 @@ function renderResults() {
       app.selectedIndex = Number(button.dataset.index);
       app.selectedKind = "precision";
       renderResults();
+      setStep("target");
     });
   });
 
   renderCandidateTabs();
   renderDetail();
+  $("goToTarget").disabled = !currentRecord();
+  if (preserveStep) setStep(app.step);
 }
 
 function renderYearCell(result, index) {
   const active = index === app.selectedIndex ? " active" : "";
-  const precision = result.precision ? formatDelta(result.precision.deltaDays) : "无候选";
-  const brightMag = result.bright ? `G ${result.bright.star.gMag.toFixed(1)}` : "无";
+  const precision = result.precision ? formatDelta(result.precision.deltaDays) : t("years.noCandidate");
+  const brightMag = result.bright ? `G ${result.bright.star.gMag.toFixed(1)}` : t("years.none");
   const dateLabel = `${result.anniversary.month}/${String(result.anniversary.day).padStart(2, "0")}`;
   const quality = result.precision || result.bright ? "available" : "empty";
   return `
@@ -860,8 +1519,8 @@ function renderYearCell(result, index) {
         <em>${dateLabel}</em>
       </span>
       <span class="year-cell-data">
-        <span>最准 ${escapeHTML(precision)}</span>
-        <span>最亮 ${escapeHTML(brightMag)}</span>
+        <span>${escapeHTML(t("years.precision", { value: precision }))}</span>
+        <span>${escapeHTML(t("years.bright", { value: brightMag }))}</span>
       </span>
     </button>
   `;
@@ -875,13 +1534,13 @@ function renderCandidateTabs() {
     return;
   }
   const items = [
-    { key: "precision", label: "时间最准", record: result.precision },
-    { key: "bright", label: "拍摄最稳", record: result.bright },
+    { key: "precision", label: t("tabs.precision"), record: result.precision },
+    { key: "bright", label: t("tabs.bright"), record: result.bright },
   ];
   tabs.innerHTML = items.map((item) => {
     const active = app.selectedKind === item.key ? " active" : "";
     const disabled = item.record ? "" : " disabled";
-    const name = item.record ? displayName(item.record.star) : "暂无候选";
+    const name = item.record ? displayName(item.record.star) : t("tabs.unavailable");
     return `<button class="tab-button${active}" type="button" data-kind="${item.key}"${disabled}><span>${item.label}</span><strong>${escapeHTML(name)}</strong></button>`;
   }).join("");
   tabs.querySelectorAll(".tab-button").forEach((button) => {
@@ -897,7 +1556,7 @@ function renderDetail() {
   const result = app.results[app.selectedIndex];
   const detail = $("detail");
   if (!result) {
-    detail.innerHTML = `<p class="empty-state">生成后选择一个年份和候选星。</p>`;
+    detail.innerHTML = `<p class="empty-state">${escapeHTML(t("target.empty"))}</p>`;
     drawSkyChart(null);
     return;
   }
@@ -909,7 +1568,7 @@ function renderDetail() {
   }
   const star = record.star;
   const form = app.currentForm;
-  const kindLabel = app.selectedKind === "bright" ? "拍摄最稳" : "时间最准";
+  const kindLabel = app.selectedKind === "bright" ? t("target.bestPhoto") : t("target.bestTiming");
   const simbadUrl = `https://simbad.u-strasbg.fr/simbad/sim-coo?Coord=${encodeURIComponent(`${star.ra} ${star.dec}`)}&Radius=5&Radius.unit=arcsec`;
   const aladinUrl = `https://aladin.cds.unistra.fr/AladinLite/?target=${encodeURIComponent(`${star.ra} ${star.dec}`)}&fov=0.1&survey=P%2FDSS2%2Fcolor`;
   const weatherNote = weatherText(record.targetMs);
@@ -917,43 +1576,71 @@ function renderDetail() {
   const subtitle = secondaryName(star);
   const identifiers = identifierSummary(star);
   const conditions = observingConditions(record, form);
+  const targetDate = `${result.year}-${pad2(result.anniversary.month)}-${pad2(result.anniversary.day)}`;
 
   detail.innerHTML = `
     <div class="target-label">${kindLabel}</div>
     <h3 class="star-name">${escapeHTML(displayName(star))}</h3>
     ${subtitle ? `<p class="star-subtitle">${escapeHTML(subtitle)}</p>` : ""}
-    <div class="metric-grid">
-      <div class="metric"><span>抵达时刻</span><strong>${formatZoned(record.arrivalMs, form.observerTimeZone)}</strong></div>
-      <div class="metric"><span>生日目标</span><strong>${formatZoned(record.targetMs, form.birthTimeZone)}</strong></div>
-      <div class="metric"><span>时间偏差</span><strong>${formatDelta(record.deltaDays)}</strong></div>
-      <div class="metric"><span>距离范围</span><strong>${star.distanceMinLy.toFixed(3)} 到 ${star.distanceMaxLy.toFixed(3)} 光年</strong></div>
-      <div class="metric"><span>亮度和颜色</span><strong>G ${star.gMag.toFixed(2)}，${colorLabel(star.colorClass)}</strong></div>
-      <div class="metric"><span>最佳窗口</span><strong>${formatZoned(record.visibility.timeMs, form.observerTimeZone)}，高度 ${record.visibility.alt.toFixed(0)}°</strong></div>
-      <div class="metric"><span>交叉标识</span><strong>${escapeHTML(identifiers)}</strong></div>
-      <div class="metric"><span>暗夜可拍</span><strong>${escapeHTML(conditions.usableWindowText)}</strong></div>
-      <div class="metric"><span>月相和月高</span><strong>${escapeHTML(conditions.moonText)}</strong></div>
-      <div class="metric"><span>坐标</span><strong>RA ${star.ra.toFixed(5)}°，Dec ${star.dec.toFixed(5)}°</strong></div>
-      <div class="metric"><span>方位</span><strong>${azLabel(record.visibility.az)} ${record.visibility.az.toFixed(0)}°</strong></div>
+    <p class="plain-intro">${escapeHTML(t("target.publicIntro", { date: targetDate, star: displayName(star) }))}</p>
+    <div class="plain-grid">
+      <section class="plain-card">
+        <span>${escapeHTML(t("target.starCardTitle"))}</span>
+        <strong>${escapeHTML(displayName(star))}</strong>
+        <p>${escapeHTML(t("target.starCardBody", { subtitle: subtitle || identifiers }))}</p>
+      </section>
+      <section class="plain-card">
+        <span>${escapeHTML(t("target.arrivalCardTitle"))}</span>
+        <strong>${escapeHTML(formatZoned(record.arrivalMs, form.observerTimeZone))}</strong>
+        <p>${escapeHTML(t("target.arrivalCardBody", { arrival: formatZoned(record.arrivalMs, form.observerTimeZone), delta: formatDelta(record.deltaDays) }))}</p>
+      </section>
+      <section class="plain-card">
+        <span>${escapeHTML(t("target.whereCardTitle"))}</span>
+        <strong>${escapeHTML(`${azLabel(record.visibility.az)} · ${record.visibility.alt.toFixed(0)}°`)}</strong>
+        <p>${escapeHTML(t("target.whereCardBody", { time: formatZoned(record.visibility.timeMs, form.observerTimeZone), azLabel: azLabel(record.visibility.az), alt: record.visibility.alt.toFixed(0) }))}</p>
+      </section>
+      <section class="plain-card">
+        <span>${escapeHTML(t("target.shootCardTitle"))}</span>
+        <strong>${escapeHTML(equipmentText(form.equipment, "label"))}</strong>
+        <p>${escapeHTML(t("target.shootCardBody", { equipment: equipmentText(form.equipment, "label"), note: equipmentText(form.equipment, "note") }))}</p>
+      </section>
     </div>
-    <div class="equipment-note">
-      <strong>${escapeHTML(form.equipment.label)}</strong>
-      <span>${escapeHTML(form.equipment.price)}</span>
-      <span>${escapeHTML(form.equipment.skill)}</span>
-    </div>
-    <ul class="note-list">
-      <li>${escapeHTML(form.equipment.note)}</li>
-      <li>${escapeHTML(conditions.summary)}</li>
-      <li>${escapeHTML(weatherNote)}</li>
-      <li>视差不确定性对应抵达范围：${formatZoned(record.arrivalMinMs, form.observerTimeZone)} 到 ${formatZoned(record.arrivalMaxMs, form.observerTimeZone)}。</li>
-      <li>找星时可在 Stellarium 或 Aladin 中输入 Gaia source_id：${escapeHTML(star.id)}，再核对相机视场。</li>
-      <li>太阳和月亮位置为浏览器端近似星历，用于初筛月光和暮光；正式拍摄前请再用 Stellarium 或天文历核对。</li>
-    </ul>
+    <p class="plain-note">${escapeHTML(t("target.simpleNote"))}</p>
     ${weatherPanel}
+    <details class="science-details">
+      <summary>${escapeHTML(t("target.details"))}</summary>
+      <div class="metric-grid">
+        <div class="metric"><span>${escapeHTML(t("target.metricArrival"))}</span><strong>${formatZoned(record.arrivalMs, form.observerTimeZone)}</strong></div>
+        <div class="metric"><span>${escapeHTML(t("target.metricBirthday"))}</span><strong>${formatZoned(record.targetMs, form.birthTimeZone)}</strong></div>
+        <div class="metric"><span>${escapeHTML(t("target.metricDelta"))}</span><strong>${formatDelta(record.deltaDays)}</strong></div>
+        <div class="metric"><span>${escapeHTML(t("target.metricDistance"))}</span><strong>${escapeHTML(t("target.distanceRange", { min: star.distanceMinLy.toFixed(3), max: star.distanceMaxLy.toFixed(3) }))}</strong></div>
+        <div class="metric"><span>${escapeHTML(t("target.metricBrightness"))}</span><strong>${escapeHTML(t("target.brightnessColor", { mag: star.gMag.toFixed(2), color: colorLabel(star.colorClass) }))}</strong></div>
+        <div class="metric"><span>${escapeHTML(t("target.metricWindow"))}</span><strong>${escapeHTML(t("target.windowValue", { time: formatZoned(record.visibility.timeMs, form.observerTimeZone), alt: record.visibility.alt.toFixed(0) }))}</strong></div>
+        <div class="metric"><span>${escapeHTML(t("target.metricIds"))}</span><strong>${escapeHTML(identifiers)}</strong></div>
+        <div class="metric"><span>${escapeHTML(t("target.metricDark"))}</span><strong>${escapeHTML(conditions.usableWindowText)}</strong></div>
+        <div class="metric"><span>${escapeHTML(t("target.metricMoon"))}</span><strong>${escapeHTML(conditions.moonText)}</strong></div>
+        <div class="metric"><span>${escapeHTML(t("target.metricCoords"))}</span><strong>${escapeHTML(t("target.coordsValue", { ra: star.ra.toFixed(5), dec: star.dec.toFixed(5) }))}</strong></div>
+        <div class="metric"><span>${escapeHTML(t("target.metricDirection"))}</span><strong>${escapeHTML(t("target.directionValue", { label: azLabel(record.visibility.az), az: record.visibility.az.toFixed(0) }))}</strong></div>
+      </div>
+      <div class="equipment-note">
+        <strong>${escapeHTML(equipmentText(form.equipment, "label"))}</strong>
+        <span>${escapeHTML(equipmentText(form.equipment, "price"))}</span>
+        <span>${escapeHTML(equipmentText(form.equipment, "skill"))}</span>
+      </div>
+      <ul class="note-list">
+        <li>${escapeHTML(equipmentText(form.equipment, "note"))}</li>
+        <li>${escapeHTML(conditions.summary)}</li>
+        <li>${escapeHTML(weatherNote)}</li>
+        <li>${escapeHTML(t("target.parallaxNote", { start: formatZoned(record.arrivalMinMs, form.observerTimeZone), end: formatZoned(record.arrivalMaxMs, form.observerTimeZone) }))}</li>
+        <li>${escapeHTML(t("target.findingNote", { id: star.id }))}</li>
+        <li>${escapeHTML(t("target.ephemerisNote"))}</li>
+      </ul>
+    </details>
     <div class="link-row">
-      <a href="${simbadUrl}" target="_blank" rel="noreferrer">SIMBAD</a>
-      <a href="${aladinUrl}" target="_blank" rel="noreferrer">Aladin</a>
-      <a href="https://gea.esac.esa.int/archive/" target="_blank" rel="noreferrer">Gaia Archive</a>
-      <button id="calendarButton" type="button">日历提醒</button>
+      <a class="link-action" href="${simbadUrl}" target="_blank" rel="noreferrer">${escapeHTML(t("links.simbad"))}</a>
+      <a class="link-action" href="${aladinUrl}" target="_blank" rel="noreferrer">${escapeHTML(t("links.aladin"))}</a>
+      <a class="link-action" href="https://gea.esac.esa.int/archive/" target="_blank" rel="noreferrer">${escapeHTML(t("links.gaia"))}</a>
+      <button id="calendarButton" class="link-action" type="button">${escapeHTML(t("target.calendar"))}</button>
     </div>
   `;
   bindWeatherControls(record, form);
@@ -964,14 +1651,14 @@ function renderDetail() {
 function renderWeatherPanel(record, form) {
   const availability = weatherAvailability(record.visibility.timeMs);
   const button = availability.available
-    ? `<button id="weatherCheckButton" class="secondary-action weather-button" type="button">查询目标夜天气</button>`
+    ? `<button id="weatherCheckButton" class="secondary-action weather-button" type="button">${escapeHTML(t("weather.button"))}</button>`
     : "";
   return `
     <section class="weather-card" aria-labelledby="weatherTitle">
       <div class="weather-heading">
         <div>
-          <span>Weather check</span>
-          <strong id="weatherTitle">目标夜天气</strong>
+          <span>${escapeHTML(t("weather.eyebrow"))}</span>
+          <strong id="weatherTitle">${escapeHTML(t("weather.title"))}</strong>
         </div>
         ${button}
       </div>
@@ -992,8 +1679,8 @@ async function checkWeather(record, form) {
   const status = $("weatherStatus");
   const result = $("weatherResult");
   button.disabled = true;
-  button.textContent = "查询中";
-  status.textContent = "正在从 Open-Meteo 获取逐小时预报。";
+  button.textContent = t("weather.loading");
+  status.textContent = t("weather.loadingText");
   result.innerHTML = "";
 
   try {
@@ -1004,10 +1691,10 @@ async function checkWeather(record, form) {
     status.textContent = summary.summary;
     result.innerHTML = renderWeatherResult(summary);
   } catch (error) {
-    status.innerHTML = `<span class="warning">天气查询失败：${escapeHTML(error.message || "未知错误")}。</span>`;
+    status.innerHTML = `<span class="warning">${escapeHTML(t("weather.fetchFailed", { message: error.message || t("weather.unknown") }))}</span>`;
   } finally {
     button.disabled = false;
-    button.textContent = "重新查询天气";
+    button.textContent = t("weather.retry");
   }
 }
 
@@ -1033,7 +1720,7 @@ function weatherApiUrl(record, form) {
 function summarizeForecast(forecast, targetMs, timeZone) {
   const hourly = forecast.hourly || {};
   const times = hourly.time || [];
-  if (!times.length) throw new Error("预报数据为空");
+  if (!times.length) throw new Error(t("weather.noData"));
 
   const rows = times.map((time, index) => ({
     ms: Date.parse(`${time}Z`),
@@ -1054,7 +1741,11 @@ function summarizeForecast(forecast, targetMs, timeZone) {
   return {
     ...sample,
     grade,
-    summary: `${grade.label}。预报时间 ${formatZoned(sampleTime, timeZone)}，距离最佳窗口约 ${formatHours((sampleTime - targetMs) / 3_600_000)}。`,
+    summary: t("weather.summary", {
+      grade: grade.label,
+      time: formatZoned(sampleTime, timeZone),
+      hours: formatHours((sampleTime - targetMs) / 3_600_000),
+    }),
   };
 }
 
@@ -1092,7 +1783,7 @@ function weatherGrade(weather) {
     metricBelow(weather.visibility, 6000) ||
     metricAtLeast(weather.gust, 40)
   ) {
-    return { label: "不推荐拍摄", tone: "bad" };
+    return { label: t("weather.bad"), tone: "bad" };
   }
   if (
     metricAtLeast(weather.cloud, 45) ||
@@ -1100,9 +1791,9 @@ function weatherGrade(weather) {
     metricBelow(weather.visibility, 12000) ||
     metricAtLeast(weather.gust, 28)
   ) {
-    return { label: "条件一般，需要临近复核", tone: "mixed" };
+    return { label: t("weather.mixed"), tone: "mixed" };
   }
-  return { label: "条件较适合拍摄", tone: "good" };
+  return { label: t("weather.good"), tone: "good" };
 }
 
 function metricAtLeast(value, threshold) {
@@ -1114,28 +1805,28 @@ function metricBelow(value, threshold) {
 }
 
 function renderWeatherResult(weather) {
-  const visibilityKm = Number.isFinite(weather.visibility) ? `${(weather.visibility / 1000).toFixed(1)} km` : "未知";
+  const visibilityKm = Number.isFinite(weather.visibility) ? `${(weather.visibility / 1000).toFixed(1)} km` : t("weather.unknown");
   return `
     <div class="weather-result-grid ${weather.grade.tone}">
-      <div><span>云量</span><strong>${formatWeatherValue(weather.cloud, "%")}</strong></div>
-      <div><span>降水概率</span><strong>${formatWeatherValue(weather.precip, "%")}</strong></div>
-      <div><span>能见度</span><strong>${visibilityKm}</strong></div>
-      <div><span>风速/阵风</span><strong>${formatWeatherValue(weather.wind, " km/h")} / ${formatWeatherValue(weather.gust, " km/h")}</strong></div>
-      <div><span>温度</span><strong>${formatWeatherValue(weather.temp, "°C")}</strong></div>
-      <div><span>湿度</span><strong>${formatWeatherValue(weather.humidity, "%")}</strong></div>
+      <div><span>${escapeHTML(t("weather.cloud"))}</span><strong>${formatWeatherValue(weather.cloud, "%")}</strong></div>
+      <div><span>${escapeHTML(t("weather.precip"))}</span><strong>${formatWeatherValue(weather.precip, "%")}</strong></div>
+      <div><span>${escapeHTML(t("weather.visibility"))}</span><strong>${visibilityKm}</strong></div>
+      <div><span>${escapeHTML(t("weather.wind"))}</span><strong>${formatWeatherValue(weather.wind, " km/h")} / ${formatWeatherValue(weather.gust, " km/h")}</strong></div>
+      <div><span>${escapeHTML(t("weather.temp"))}</span><strong>${formatWeatherValue(weather.temp, "°C")}</strong></div>
+      <div><span>${escapeHTML(t("weather.humidity"))}</span><strong>${formatWeatherValue(weather.humidity, "%")}</strong></div>
     </div>
   `;
 }
 
 function formatWeatherValue(value, unit) {
-  if (!Number.isFinite(value)) return "未知";
+  if (!Number.isFinite(value)) return t("weather.unknown");
   return `${Math.round(value)}${unit}`;
 }
 
 function formatHours(hours) {
   const abs = Math.abs(hours);
-  if (abs < 0.15) return "0 小时";
-  return `${hours >= 0 ? "晚" : "早"} ${abs.toFixed(1)} 小时`;
+  if (abs < 0.15) return t("hours.zero");
+  return hours >= 0 ? t("hours.late", { value: abs.toFixed(1) }) : t("hours.early", { value: abs.toFixed(1) });
 }
 
 function bindCalendarDownload(record, form) {
@@ -1250,11 +1941,11 @@ function drawSkyChart(record) {
   ctx.font = "13px Segoe UI, sans-serif";
   ctx.fillText("90°", cx, cy + 4);
   ctx.fillText("45°", cx, cy - radius * 0.5 - 6);
-  ctx.fillText("0° horizon", cx, cy + radius + 14);
+  ctx.fillText(t("target.skyHorizon"), cx, cy + radius + 14);
 
   if (!record) {
     ctx.fillStyle = "rgba(184, 195, 182, 0.9)";
-    ctx.fillText("等待目标", cx, cy);
+    ctx.fillText(t("target.skyWaiting"), cx, cy);
     return;
   }
 
@@ -1285,7 +1976,7 @@ function drawSkyChart(record) {
   ctx.textAlign = x > cx ? "left" : "right";
   ctx.fillText(displayName(record.star), x + (x > cx ? 12 : -12), y - 10);
   ctx.fillStyle = "rgba(231, 237, 226, 0.88)";
-  ctx.fillText(`Alt ${record.visibility.alt.toFixed(0)}° · Az ${record.visibility.az.toFixed(0)}°`, x + (x > cx ? 12 : -12), y + 10);
+  ctx.fillText(t("target.skyAltAz", { alt: record.visibility.alt.toFixed(0), az: record.visibility.az.toFixed(0) }), x + (x > cx ? 12 : -12), y + 10);
 }
 
 function drawStarscape() {
@@ -1370,14 +2061,7 @@ function unique(values) {
 }
 
 function colorLabel(colorClass) {
-  return {
-    "blue-white": "蓝白色",
-    white: "白色",
-    "yellow-white": "黄白色",
-    orange: "橙色",
-    red: "红色",
-    unknown: "颜色未知",
-  }[colorClass] || "颜色未知";
+  return t(`color.${colorClass}`) || t("color.unknown");
 }
 
 function weatherAvailability(observationMs) {
@@ -1385,36 +2069,36 @@ function weatherAvailability(observationMs) {
   if (daysAway < -1) {
     return {
       available: false,
-      message: "这个最佳窗口已经不在未来预报范围内。请以实际观测前的天气为准。",
+      message: t("weather.unavailablePast"),
     };
   }
   if (daysAway > 16) {
     return {
       available: false,
-      message: "目标夜距离现在超过 16 天，天气预报还不可靠；临近拍摄前再查询。",
+      message: t("weather.unavailableFuture"),
     };
   }
   return {
     available: true,
-    message: "目标夜已进入 16 天预报窗口，可查询云量、降水概率、能见度和风。",
+    message: t("weather.available"),
   };
 }
 
 function weatherText(targetMs) {
   const daysAway = (targetMs - Date.now()) / DAY_MS;
   if (daysAway >= 0 && daysAway <= 16) {
-    return "目标日期已进入常规天气预报窗口，可在拍摄前再查云量、透明度、风和月相。";
+    return t("weather.nearNote");
   }
-  return "目标日期距离现在超过常规可靠天气预报窗口，多年后的云量只能临近拍摄前再确认。";
+  return t("weather.futureNote");
 }
 
 function formatDelta(days) {
   const abs = Math.abs(days);
-  if (abs < 0.04) return "几乎同刻";
-  const direction = days >= 0 ? "晚" : "早";
-  if (abs < 1) return `${direction} ${(abs * 24).toFixed(1)} 小时`;
-  if (abs < 45) return `${direction} ${abs.toFixed(1)} 天`;
-  return `${direction} ${(abs / 30.4375).toFixed(1)} 个月`;
+  if (abs < 0.04) return t("delta.same");
+  const direction = days >= 0 ? t("delta.late") : t("delta.early");
+  if (abs < 1) return t("delta.hours", { dir: direction, value: (abs * 24).toFixed(1) });
+  if (abs < 45) return t("delta.days", { dir: direction, value: abs.toFixed(1) });
+  return t("delta.months", { dir: direction, value: (abs / 30.4375).toFixed(1) });
 }
 
 function formatZoned(ms, timeZone) {
@@ -1423,7 +2107,7 @@ function formatZoned(ms, timeZone) {
 }
 
 function azLabel(az) {
-  const labels = ["北", "东北", "东", "东南", "南", "西南", "西", "西北"];
+  const labels = t("direction");
   return labels[Math.round(normalizeDeg(az) / 45) % 8];
 }
 
