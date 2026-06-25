@@ -15,12 +15,16 @@
     <header class="site-header">
       <div class="header-inner">
         <div class="brand-block">
-          <p class="kicker">Gaia DR3 nearby stars</p>
+          <p class="kicker" data-i18n="header.kicker">Gaia DR3 nearby stars</p>
           <h1>Birthday Starlight</h1>
-          <p class="subtitle">输入出生时刻和观测地点，寻找那束从恒星出发、在未来生日附近抵达地球的光。</p>
+          <p class="subtitle" data-i18n="header.subtitle">输入出生时刻和观测地点，寻找那束从恒星出发、在未来生日附近抵达地球的光。</p>
         </div>
         <div class="header-actions">
-          <div class="theme-switch" aria-label="切换页面样式">
+          <div class="language-switch" aria-label="切换语言" data-i18n-aria-label="header.languageToggle">
+            <button type="button" data-lang-choice="zh" aria-pressed="true">中文</button>
+            <button type="button" data-lang-choice="en" aria-pressed="false">English</button>
+          </div>
+          <div class="theme-switch" aria-label="切换页面样式" data-i18n-aria-label="header.themeToggle">
             <button type="button" data-theme-choice="mission" aria-pressed="true">Mission</button>
             <button type="button" data-theme-choice="fieldbook" aria-pressed="false">Fieldbook</button>
           </div>
@@ -32,32 +36,51 @@
       </div>
     </header>
 
-    <main class="workspace">
-      <section class="input-panel" aria-labelledby="formTitle">
+    <main class="wizard-shell">
+      <nav class="stepper" aria-label="流程进度" data-i18n-aria-label="steps.aria">
+        <button class="stepper-item active" type="button" data-step-target="input">
+          <span>1</span>
+          <strong data-i18n="steps.inputTitle">选择参数</strong>
+          <em data-i18n="steps.inputHint">生日、地点和设备</em>
+        </button>
+        <button class="stepper-item" type="button" data-step-target="years" disabled>
+          <span>2</span>
+          <strong data-i18n="steps.yearsTitle">选择年份</strong>
+          <em data-i18n="steps.yearsHint">找一个生日夜晚</em>
+        </button>
+        <button class="stepper-item" type="button" data-step-target="target" disabled>
+          <span>3</span>
+          <strong data-i18n="steps.targetTitle">查看星星</strong>
+          <em data-i18n="steps.targetHint">位置和拍摄建议</em>
+        </button>
+      </nav>
+
+      <section id="stepInput" class="input-panel step-panel active" aria-labelledby="formTitle" data-step-panel="input">
         <div class="panel-heading">
-          <p>Observation brief</p>
-          <h2 id="formTitle">生日与观测条件</h2>
+          <p data-i18n="form.eyebrow">Observation brief</p>
+          <h2 id="formTitle" data-i18n="form.title">生日与观测条件</h2>
+          <span data-i18n="form.lead">先告诉我你出生的那一刻，以及你准备在哪里看这束光。</span>
         </div>
 
         <form id="birthForm" class="form-grid">
           <div class="field-pair">
             <label>
-              <span>出生日期</span>
+              <span data-i18n="form.birthDate">出生日期</span>
               <input id="birthDate" type="date" required>
             </label>
             <label>
-              <span>出生时间</span>
+              <span data-i18n="form.birthTime">出生时间</span>
               <input id="birthTime" type="time" value="12:00">
             </label>
           </div>
 
           <div class="field-pair">
             <label>
-              <span>出生地时区</span>
+              <span data-i18n="form.birthTimeZone">出生地时区</span>
               <input id="birthTimeZone" list="timeZoneOptions" autocomplete="off" required>
             </label>
             <label>
-              <span>观测地时区</span>
+              <span data-i18n="form.observerTimeZone">观测地时区</span>
               <input id="observerTimeZone" list="timeZoneOptions" autocomplete="off" required>
             </label>
           </div>
@@ -66,100 +89,110 @@
           <div class="map-block">
             <div class="map-toolbar">
               <label>
-                <span>搜索观测地点</span>
-                <input id="placeSearch" type="search" placeholder="例如: Tokyo, Mauna Kea, 北京">
+                <span data-i18n="form.placeSearch">搜索观测地点</span>
+                <input id="placeSearch" type="search" placeholder="例如: Tokyo, Mauna Kea, 北京" data-i18n-placeholder="form.placePlaceholder">
               </label>
-              <button id="placeSearchButton" class="secondary-action" type="button">定位</button>
+              <button id="placeSearchButton" class="secondary-action" type="button" data-i18n="form.locate">定位</button>
             </div>
-            <div id="map" class="map" aria-label="选择观测地点的地图"></div>
-            <p class="field-note">点击地图或拖动标记选择观测点。页面不会自动读取你的定位；地名搜索使用 OpenStreetMap Nominatim。</p>
+            <div id="map" class="map" aria-label="选择观测地点的地图" data-i18n-aria-label="form.mapLabel"></div>
+            <p class="field-note" data-i18n="form.mapNote">点击地图或拖动标记选择观测点。页面不会自动读取你的定位；地名搜索使用 OpenStreetMap Nominatim。</p>
           </div>
 
           <div class="field-pair">
             <label>
-              <span>纬度</span>
+              <span data-i18n="form.latitude">纬度</span>
               <input id="latitude" type="number" step="0.0001" value="34.0000">
             </label>
             <label>
-              <span>经度</span>
+              <span data-i18n="form.longitude">经度</span>
               <input id="longitude" type="number" step="0.0001" value="108.0000">
             </label>
           </div>
 
           <fieldset class="equipment-field">
-            <legend>设备档位</legend>
+            <legend data-i18n="form.equipment">设备档位</legend>
             <div class="equipment-grid">
               <label class="equipment-card">
                 <input type="radio" name="equipment" value="naked" checked>
-                <span>肉眼暗空</span>
+                <span data-i18n="equipment.naked.label">肉眼暗空</span>
                 <strong>G≤5.5</strong>
-                <em>低成本，难点是找暗场和避开月光。</em>
+                <em data-i18n="equipment.naked.short">低成本，难点是找暗场和避开月光。</em>
               </label>
               <label class="equipment-card">
                 <input type="radio" name="equipment" value="binoculars">
-                <span>双筒望远镜</span>
+                <span data-i18n="equipment.binoculars.label">双筒望远镜</span>
                 <strong>G≤8.0</strong>
-                <em>入门友好，适合 7x50 或 10x50。</em>
+                <em data-i18n="equipment.binoculars.short">入门友好，适合 7x50 或 10x50。</em>
               </label>
               <label class="equipment-card">
                 <input type="radio" name="equipment" value="camera_fixed">
-                <span>相机固定三脚架</span>
+                <span data-i18n="equipment.camera_fixed.label">相机固定三脚架</span>
                 <strong>G≤8.5</strong>
-                <em>短曝光多张堆栈，适合宽一点的视场。</em>
+                <em data-i18n="equipment.camera_fixed.short">短曝光多张堆栈，适合宽一点的视场。</em>
               </label>
               <label class="equipment-card">
                 <input type="radio" name="equipment" value="telephoto_tracker">
-                <span>长焦加星野赤道仪</span>
+                <span data-i18n="equipment.telephoto_tracker.label">长焦加星野赤道仪</span>
                 <strong>G≤11.0</strong>
-                <em>200-600mm，极轴和堆栈开始重要。</em>
+                <em data-i18n="equipment.telephoto_tracker.short">200-600mm，极轴和堆栈开始重要。</em>
               </label>
               <label class="equipment-card">
                 <input type="radio" name="equipment" value="small_scope">
-                <span>小望远镜深空入门</span>
+                <span data-i18n="equipment.small_scope.label">小望远镜深空入门</span>
                 <strong>G≤13.5</strong>
-                <em>GoTo、导星或短曝光堆栈，时间可更准。</em>
+                <em data-i18n="equipment.small_scope.short">GoTo、导星或短曝光堆栈，时间可更准。</em>
               </label>
               <label class="equipment-card">
                 <input type="radio" name="equipment" value="advanced">
-                <span>进阶民用设备</span>
+                <span data-i18n="equipment.advanced.label">进阶民用设备</span>
                 <strong>G≤14.0</strong>
-                <em>更依赖天气、校准和后期，不需要专业台站。</em>
+                <em data-i18n="equipment.advanced.short">更依赖天气、校准和后期，不需要专业台站。</em>
               </label>
             </div>
           </fieldset>
 
           <label>
-            <span>未来年份数</span>
+            <span data-i18n="form.horizon">未来年份数</span>
             <input id="horizon" type="number" min="5" max="50" value="20">
           </label>
 
           <div class="form-actions">
-            <button class="primary-action" type="submit">生成生日星光</button>
-            <button id="shareButton" class="secondary-action" type="button">复制分享链接</button>
+            <button class="primary-action" type="submit" data-i18n="form.generate">生成生日星光</button>
+            <button id="shareButton" class="secondary-action" type="button" data-i18n="form.share">复制分享链接</button>
           </div>
           <p id="shareStatus" class="field-note" aria-live="polite"></p>
         </form>
       </section>
 
-      <section class="overview-panel" aria-live="polite">
+      <section id="stepYears" class="overview-panel step-panel" aria-live="polite" data-step-panel="years">
         <div class="panel-heading">
-          <p>Year overview</p>
-          <h2>年份总览</h2>
+          <p data-i18n="years.eyebrow">Year overview</p>
+          <h2 data-i18n="years.title">选择一个生日年份</h2>
+          <span data-i18n="years.lead">每个方块代表那一年生日附近的一次候选观测机会。</span>
         </div>
         <div id="summary" class="summary-box">等待输入生日。</div>
         <div id="yearGrid" class="year-grid"></div>
+        <div class="step-actions">
+          <button id="backToInput" class="secondary-action" type="button" data-i18n="nav.backToInput">返回修改参数</button>
+          <button id="goToTarget" class="primary-action" type="button" disabled data-i18n="nav.viewSelected">查看选中的星星</button>
+        </div>
       </section>
 
-      <section class="target-panel" aria-labelledby="detailTitle">
+      <section id="stepTarget" class="target-panel step-panel" aria-labelledby="detailTitle" data-step-panel="target">
         <div class="panel-heading">
-          <p>Selected target</p>
-          <h2 id="detailTitle">候选恒星详情</h2>
+          <p data-i18n="target.eyebrow">Selected target</p>
+          <h2 id="detailTitle" data-i18n="target.title">你的生日星光</h2>
+          <span data-i18n="target.lead">先看核心答案；需要科学细节时再展开。</span>
         </div>
         <div id="candidateTabs" class="candidate-tabs"></div>
         <article id="detail" class="detail-card">
           <p class="empty-state">生成后选择一个年份和候选星。</p>
         </article>
         <canvas id="skyChart" class="sky-chart" width="720" height="420" aria-label="目标恒星方位示意图"></canvas>
+        <div class="step-actions">
+          <button id="backToYears" class="secondary-action" type="button" data-i18n="nav.backToYears">返回选择年份</button>
+          <button id="editInputs" class="secondary-action" type="button" data-i18n="nav.editInputs">重新选择参数</button>
+        </div>
       </section>
     </main>
   </div>

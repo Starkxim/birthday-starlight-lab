@@ -10,6 +10,9 @@ Birthday Starlight is a browser-only astronomy web app. Enter a birth date, time
 
 - Finds future birthday-year targets from a static Gaia DR3 nearby-star catalog.
 - Provides two candidates per year when available: best timing accuracy and easiest imaging target.
+- Guides users through a three-step flow: setup, birthday-year choice, and target viewing.
+- Supports Chinese and English through an in-page language switcher.
+- Shows a plain-language target summary first, with scientific details available on demand.
 - Estimates arrival time, distance uncertainty, apparent brightness, altitude, azimuth, and observing window.
 - Uses IANA time zones for birth and observing locations.
 - Lets users pick an observing coordinate on an OpenStreetMap map or enter coordinates manually.
@@ -17,7 +20,7 @@ Birthday Starlight is a browser-only astronomy web app. Enter a birth date, time
 - Exports selected targets as `.ics` calendar reminders for personal calendar apps.
 - Runs fully in the browser with no account system, no backend, and no visitor data upload.
 - Includes a GitHub Actions workflow for publishing the static site to GitHub Pages.
-- Includes a Python script and manual workflow for rebuilding the star catalog from the ESA Gaia Archive.
+- Includes Python scripts and a scheduled GitHub Actions workflow that rebuilds the catalog and opens a reviewable pull request when data changes.
 
 ## Quick Start
 
@@ -82,7 +85,7 @@ python scripts/build_cross_identifications.py \
 
 The alias builder also uses only the Python standard library. It queries SIMBAD during preprocessing so visitors do not make per-page-load SIMBAD requests.
 
-The catalog rebuild workflow is manual and uploads the rebuilt JSON as an artifact. It does not commit directly to `main`.
+The catalog update workflow can be triggered manually and also runs monthly. It rebuilds both `data/star-catalog.json` and `data/star-crossids.json`, preserves the previous timestamp when only `generatedAtUtc` changed, then opens a pull request if the generated files changed. It does not commit directly to `main`.
 
 ## Data Model
 
@@ -132,18 +135,12 @@ The repository is intended to be maintained through issues and pull requests. Di
 - Shareable result links that encode selected settings only, without accounts or server storage.
 - Optional Open-Meteo forecast checks when a target night falls inside the reliable forecast window.
 - `.ics` calendar reminder export for selected birthday targets.
+- Chinese and English UI with a three-step public-facing flow and expandable science details.
+- Scheduled GitHub Actions catalog refresh that opens a pull request instead of writing to `main`.
 
-## Roadmap
+## Paused Ideas
 
-The roadmap is prioritized by user pain and reviewability. Each item should land as its own pull request.
-
-| Priority | Feature | Why it matters |
-| --- | --- | --- |
-| P1 | Offline light-pollution lookup | Location selection is already coordinate-based, but the app still cannot estimate sky quality from that coordinate. This is a major observing-difficulty gap. |
-| P2 | Optional email reminders or richer reminder scheduling | Calendar export now stays static-site friendly. Email reminders would introduce backend, abuse-prevention, and privacy work. |
-| P2 | Weather quality scoring refinements | Open-Meteo gives convenient forecast-window data; astronomy-specific transparency and seeing sources would make observing guidance sharper. |
-| P2 | Broader cross-identification coverage | The current alias layer keeps the static payload small by defaulting to Gaia G magnitude `<= 8.5`; fainter targets need a larger offline file or a lazy lookup strategy. |
-| P2 | Pull-request based catalog update workflow | The catalog rebuild workflow should produce reviewable changes through PRs, never write directly to `main`. The current manual artifact workflow is a safe baseline. |
+The project intentionally keeps the public MVP static and lightweight. Offline light-pollution lookup, optional email reminders, richer weather scoring, and broader faint-star alias coverage are not planned for the current iteration.
 
 ## Contributing
 
@@ -183,6 +180,9 @@ English version: [English](#birthday-starlight)
 
 - 从静态 Gaia DR3 近邻恒星星表中寻找未来生日年份的目标星。
 - 每年尽量给出两类候选：时间最准、拍摄最稳。
+- 使用三步流程引导用户：选择参数、选择生日年份、查看目标星。
+- 支持中文和英文界面切换。
+- 先展示面向大众的核心答案，需要时再展开科学细节。
 - 估算抵达时刻、距离不确定范围、亮度、高度角、方位角和推荐观测窗口。
 - 使用 IANA 时区分别表示出生地和观测地时区。
 - 可以在 OpenStreetMap 地图上选择观测坐标，也可以手动输入经纬度。
@@ -190,7 +190,7 @@ English version: [English](#birthday-starlight)
 - 可以把选中的目标导出为 `.ics` 日历提醒，导入个人日历应用。
 - 完全在浏览器中运行，没有账号系统、没有后端、不会上传访客输入。
 - 自带 GitHub Actions 工作流，可发布到 GitHub Pages。
-- 自带 Python 脚本和手动工作流，可从 ESA Gaia Archive 重建恒星星表。
+- 自带 Python 脚本和定时 GitHub Actions 工作流，可重建星表并在数据变化时自动开启 pull request。
 
 ## 快速开始
 
@@ -255,7 +255,7 @@ python scripts/build_cross_identifications.py \
 
 别名构建脚本同样只使用 Python 标准库。它只在预处理阶段查询 SIMBAD，网页访问者不会在每次打开页面时请求 SIMBAD。
 
-星表重建工作流需要手动触发，并把新的 JSON 作为 artifact 上传。它不会直接提交到 `main`。
+星表更新工作流可以手动触发，也会每月定时运行。它会同时重建 `data/star-catalog.json` 和 `data/star-crossids.json`；如果只是 `generatedAtUtc` 时间戳变化，会保留旧时间戳；如果生成文件确实发生变化，就自动开启 pull request。它不会直接提交到 `main`。
 
 ## 数据模型
 
@@ -305,18 +305,12 @@ distance_ly = 3261.563777 / parallax_mas
 - 生成只编码用户选择、不需要账号和服务器存储的分享链接。
 - 当目标夜进入可靠预报窗口后，可选择查询 Open-Meteo 天气预报。
 - 把选中的生日目标导出为 `.ics` 日历提醒文件。
+- 中文和英文界面、三步大众化流程，以及可展开的科学细节。
+- 定时 GitHub Actions 星表刷新，生成可 review 的 pull request，而不是直接写入 `main`。
 
-## 未来路线
+## 暂停想法
 
-路线图按用户痛点和代码 review 粒度排序。每一项都应该单独开 pull request。
-
-| 优先级 | 功能 | 为什么重要 |
-| --- | --- | --- |
-| P1 | 使用离线光污染数据按坐标估算天空质量 | 现在已经支持地图选点，但还不能根据坐标判断光污染，这是拍摄难度判断里的明显缺口。 |
-| P2 | 可选邮件提醒或更丰富的提醒计划 | 现在已经有适合静态网站的日历导出；邮件提醒会引入后端、防滥用和隐私问题。 |
-| P2 | 改进天气质量评分 | Open-Meteo 已能提供预报窗口内的天气数据；如果加入更贴近天文观测的透明度和视宁度来源，建议会更准确。 |
-| P2 | 扩展更暗目标的交叉标识覆盖 | 当前别名层为了控制静态文件体积，默认覆盖 Gaia G 星等 `<= 8.5`；更暗目标需要更大的离线文件或按需查询策略。 |
-| P2 | 用 pull request 更新星表 | 星表重建应产生可 review 的变更，而不是直接写入 `main`。当前手动 artifact 工作流已经是安全基线。 |
+项目当前刻意保持静态、轻量。离线光污染查询、可选邮件提醒、更细的天气评分、更暗恒星的别名覆盖，暂时不进入当前迭代。
 
 ## 参与贡献
 
