@@ -6,7 +6,7 @@
   <title>Birthday Starlight</title>
   <meta name="description" content="Find future birthday nights when light that left a nearby star around your birth moment reaches Earth.">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="assets/styles.css">
+  <link rel="stylesheet" href="assets/styles.css?v=20260626-ui5">
 </head>
 <body data-theme="mission">
   <canvas id="starscape" aria-hidden="true"></canvas>
@@ -20,13 +20,19 @@
           <p class="subtitle" data-i18n="header.subtitle">输入出生时刻和观测地点，寻找那束从恒星出发、在未来生日附近抵达地球的光。</p>
         </div>
         <div class="header-actions">
-          <div class="language-switch" aria-label="切换语言" data-i18n-aria-label="header.languageToggle">
-            <button type="button" data-lang-choice="zh" aria-pressed="true">中文</button>
-            <button type="button" data-lang-choice="en" aria-pressed="false">English</button>
+          <div class="language-switch control-switch" aria-label="切换语言" data-i18n-aria-label="header.languageToggle">
+            <span class="switch-label" data-i18n="header.languageLabel">语言</span>
+            <div class="switch-options">
+              <button type="button" data-lang-choice="zh" aria-pressed="true">中文</button>
+              <button type="button" data-lang-choice="en" aria-pressed="false">English</button>
+            </div>
           </div>
-          <div class="theme-switch" aria-label="切换页面样式" data-i18n-aria-label="header.themeToggle">
-            <button type="button" data-theme-choice="mission" aria-pressed="true">Mission</button>
-            <button type="button" data-theme-choice="fieldbook" aria-pressed="false">Fieldbook</button>
+          <div class="theme-switch control-switch" aria-label="切换页面样式" data-i18n-aria-label="header.themeToggle">
+            <span class="switch-label" data-i18n="header.themeLabel">样式</span>
+            <div class="switch-options">
+              <button type="button" data-theme-choice="mission" aria-pressed="true">Mission</button>
+              <button type="button" data-theme-choice="fieldbook" aria-pressed="false">Fieldbook</button>
+            </div>
           </div>
           <div class="catalog-card">
             <span>Catalog</span>
@@ -198,6 +204,6 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="assets/app.js"></script>
+  <script src="assets/app.js?v=20260626-ui5"></script>
 </body>
 </html>

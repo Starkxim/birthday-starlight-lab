@@ -88,7 +88,9 @@ const I18N = {
       kicker: "Gaia DR3 近邻恒星",
       subtitle: "输入出生时刻和观测地点，寻找那束从恒星出发、在未来生日附近抵达地球的光。",
       languageToggle: "切换语言",
+      languageLabel: "语言",
       themeToggle: "切换页面样式",
+      themeLabel: "样式",
     },
     steps: {
       aria: "流程进度",
@@ -191,6 +193,9 @@ const I18N = {
       empty: "生成后选择一个年份和候选星。",
       bestPhoto: "拍摄最稳",
       bestTiming: "时间最准",
+      publicBadge: "大众结论",
+      publicHeadline: "可以找这颗星：{star}",
+      publicSubline: "先按这几条准备观测；需要精确数字时，再展开下面的科学细节。",
       publicIntro: "{date} 这个生日夜，可以试着寻找 {star}。",
       starCardTitle: "哪颗星",
       arrivalCardTitle: "这束光何时抵达",
@@ -224,7 +229,7 @@ const I18N = {
       skyWaiting: "等待目标",
       skyHorizon: "0° 地平线",
       skyAltAz: "高度 {alt}° · 方位 {az}°",
-      calendar: "日历提醒",
+      calendar: "下载日历提醒",
     },
     tabs: {
       precision: "时间最准",
@@ -232,9 +237,9 @@ const I18N = {
       unavailable: "暂无候选",
     },
     links: {
-      simbad: "SIMBAD",
-      aladin: "Aladin",
-      gaia: "Gaia Archive",
+      simbad: "打开 SIMBAD",
+      aladin: "打开 Aladin",
+      gaia: "打开 Gaia Archive",
     },
     weather: {
       title: "目标夜天气",
@@ -335,7 +340,9 @@ const I18N = {
       kicker: "Gaia DR3 nearby stars",
       subtitle: "Enter a birth moment and observing place to find starlight that may arrive near a future birthday.",
       languageToggle: "Change language",
+      languageLabel: "Language",
       themeToggle: "Change visual style",
+      themeLabel: "Style",
     },
     steps: {
       aria: "Progress",
@@ -438,6 +445,9 @@ const I18N = {
       empty: "Generate results, then choose a year and a candidate star.",
       bestPhoto: "Easiest to image",
       bestTiming: "Closest timing",
+      publicBadge: "Plain answer",
+      publicHeadline: "Try this star: {star}",
+      publicSubline: "Start with these observing notes. Open the science details below when you want the exact numbers.",
       publicIntro: "On the birthday night of {date}, try looking for {star}.",
       starCardTitle: "Which star",
       arrivalCardTitle: "When the light arrives",
@@ -471,7 +481,7 @@ const I18N = {
       skyWaiting: "Waiting for a target",
       skyHorizon: "0° horizon",
       skyAltAz: "Alt {alt}° · Az {az}°",
-      calendar: "Calendar reminder",
+      calendar: "Download calendar reminder",
     },
     tabs: {
       precision: "Closest timing",
@@ -479,9 +489,9 @@ const I18N = {
       unavailable: "No candidate",
     },
     links: {
-      simbad: "SIMBAD",
-      aladin: "Aladin",
-      gaia: "Gaia Archive",
+      simbad: "Open SIMBAD",
+      aladin: "Open Aladin",
+      gaia: "Open Gaia Archive",
     },
     weather: {
       title: "Target-night weather",
@@ -624,6 +634,7 @@ function setLanguage(lang) {
   app.lang = lang === "en" ? "en" : "zh";
   localStorage.setItem("birthday-starlight-lang", app.lang);
   applyLanguage();
+  updateLanguageUrl();
   if (app.catalog) updateCatalogStatus();
   if (app.currentForm && app.catalog) {
     app.currentForm = readForm();
@@ -635,6 +646,12 @@ function setLanguage(lang) {
     renderEmptyState();
   }
   if (app.currentForm) updateShareUrl(app.currentForm);
+}
+
+function updateLanguageUrl() {
+  const params = new URLSearchParams(window.location.search);
+  params.set("lang", app.lang);
+  window.history.replaceState(null, "", `${window.location.origin}${window.location.pathname}?${params.toString()}`);
 }
 
 function t(key, values = {}) {
@@ -806,7 +823,7 @@ function initMap() {
 
 function applySharedState() {
   const params = new URLSearchParams(window.location.search);
-  const sharedKeys = ["birth", "time", "birthTz", "obsTz", "lat", "lon", "years", "place", "equipment"];
+  const sharedKeys = ["birth", "time", "birthTz", "obsTz", "lat", "lon", "years", "place", "equipment", "equip"];
   const hasSharedState = sharedKeys.some((key) => params.has(key));
   if (!hasSharedState) return false;
 
@@ -819,7 +836,7 @@ function applySharedState() {
   setInputFromParam(params, "horizon", "years");
   setInputFromParam(params, "placeSearch", "place");
 
-  const equipmentKey = params.get("equipment");
+  const equipmentKey = params.get("equipment") || params.get("equip");
   if (equipmentKey && EQUIPMENT[equipmentKey]) {
     const option = document.querySelector(`input[name="equipment"][value="${equipmentKey}"]`);
     if (option) option.checked = true;
@@ -1579,33 +1596,38 @@ function renderDetail() {
   const targetDate = `${result.year}-${pad2(result.anniversary.month)}-${pad2(result.anniversary.day)}`;
 
   detail.innerHTML = `
-    <div class="target-label">${kindLabel}</div>
-    <h3 class="star-name">${escapeHTML(displayName(star))}</h3>
-    ${subtitle ? `<p class="star-subtitle">${escapeHTML(subtitle)}</p>` : ""}
-    <p class="plain-intro">${escapeHTML(t("target.publicIntro", { date: targetDate, star: displayName(star) }))}</p>
-    <div class="plain-grid">
-      <section class="plain-card">
-        <span>${escapeHTML(t("target.starCardTitle"))}</span>
-        <strong>${escapeHTML(displayName(star))}</strong>
-        <p>${escapeHTML(t("target.starCardBody", { subtitle: subtitle || identifiers }))}</p>
-      </section>
-      <section class="plain-card">
-        <span>${escapeHTML(t("target.arrivalCardTitle"))}</span>
-        <strong>${escapeHTML(formatZoned(record.arrivalMs, form.observerTimeZone))}</strong>
-        <p>${escapeHTML(t("target.arrivalCardBody", { arrival: formatZoned(record.arrivalMs, form.observerTimeZone), delta: formatDelta(record.deltaDays) }))}</p>
-      </section>
-      <section class="plain-card">
-        <span>${escapeHTML(t("target.whereCardTitle"))}</span>
-        <strong>${escapeHTML(`${azLabel(record.visibility.az)} · ${record.visibility.alt.toFixed(0)}°`)}</strong>
-        <p>${escapeHTML(t("target.whereCardBody", { time: formatZoned(record.visibility.timeMs, form.observerTimeZone), azLabel: azLabel(record.visibility.az), alt: record.visibility.alt.toFixed(0) }))}</p>
-      </section>
-      <section class="plain-card">
-        <span>${escapeHTML(t("target.shootCardTitle"))}</span>
-        <strong>${escapeHTML(equipmentText(form.equipment, "label"))}</strong>
-        <p>${escapeHTML(t("target.shootCardBody", { equipment: equipmentText(form.equipment, "label"), note: equipmentText(form.equipment, "note") }))}</p>
-      </section>
-    </div>
-    <p class="plain-note">${escapeHTML(t("target.simpleNote"))}</p>
+    <section class="public-answer" aria-label="${escapeHTML(t("target.publicBadge"))}">
+      <div class="public-answer-head">
+        <span class="target-label">${escapeHTML(kindLabel)}</span>
+        <h3 class="star-name">${escapeHTML(t("target.publicHeadline", { star: displayName(star) }))}</h3>
+        ${subtitle ? `<p class="star-subtitle">${escapeHTML(subtitle)}</p>` : ""}
+        <p class="plain-intro">${escapeHTML(t("target.publicIntro", { date: targetDate, star: displayName(star) }))}</p>
+        <p class="public-subline">${escapeHTML(t("target.publicSubline"))}</p>
+      </div>
+      <div class="plain-grid">
+        <section class="plain-card">
+          <span>${escapeHTML(t("target.starCardTitle"))}</span>
+          <strong>${escapeHTML(displayName(star))}</strong>
+          <p>${escapeHTML(t("target.starCardBody", { subtitle: subtitle || identifiers }))}</p>
+        </section>
+        <section class="plain-card">
+          <span>${escapeHTML(t("target.arrivalCardTitle"))}</span>
+          <strong>${escapeHTML(formatZoned(record.arrivalMs, form.observerTimeZone))}</strong>
+          <p>${escapeHTML(t("target.arrivalCardBody", { arrival: formatZoned(record.arrivalMs, form.observerTimeZone), delta: formatDelta(record.deltaDays) }))}</p>
+        </section>
+        <section class="plain-card">
+          <span>${escapeHTML(t("target.whereCardTitle"))}</span>
+          <strong>${escapeHTML(`${azLabel(record.visibility.az)} · ${record.visibility.alt.toFixed(0)}°`)}</strong>
+          <p>${escapeHTML(t("target.whereCardBody", { time: formatZoned(record.visibility.timeMs, form.observerTimeZone), azLabel: azLabel(record.visibility.az), alt: record.visibility.alt.toFixed(0) }))}</p>
+        </section>
+        <section class="plain-card">
+          <span>${escapeHTML(t("target.shootCardTitle"))}</span>
+          <strong>${escapeHTML(equipmentText(form.equipment, "label"))}</strong>
+          <p>${escapeHTML(t("target.shootCardBody", { equipment: equipmentText(form.equipment, "label"), note: equipmentText(form.equipment, "note") }))}</p>
+        </section>
+      </div>
+      <p class="plain-note">${escapeHTML(t("target.simpleNote"))}</p>
+    </section>
     ${weatherPanel}
     <details class="science-details">
       <summary>${escapeHTML(t("target.details"))}</summary>
