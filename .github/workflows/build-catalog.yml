@@ -19,6 +19,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -58,13 +61,37 @@ jobs:
       - name: Commit rebuilt catalog
         if: steps.diff.outputs.changed == 'true'
         run: |
+          set -euo pipefail
           branch="automation/catalog-update-${GITHUB_RUN_ID}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -c "$branch"
+
+          # Ensure we have remote refs and history
+          git fetch --no-tags --prune origin
+
+          # If remote branch exists, base the local branch on it; otherwise create new branch
+          if git ls-remote --exit-code --heads origin "$branch"; then
+            # Try to create local branch based on origin/$branch; if already exists, switch to it
+            git switch -c "$branch" "origin/$branch" || git switch "$branch"
+          else
+            git switch -c "$branch"
+          fi
+
           git add data/star-catalog.json data/star-crossids.json
-          git commit -m "Update Gaia star catalog"
-          git push --set-upstream origin "$branch"
+          git commit -m "Update Gaia star catalog" || echo "No changes to commit"
+
+          # Try a normal push; if it fails because remote has new commits, rebase onto remote and push.
+          if ! git push --set-upstream origin "$branch"; then
+            echo "Push rejected, attempting to rebase onto origin/$branch"
+            # Ensure we have the latest remote branch (if it exists)
+            git fetch origin "$branch" || true
+            if git rev-parse --verify "origin/$branch" >/dev/null 2>&1; then
+              git rebase "origin/$branch" || (git rebase --abort && exit 1)
+            fi
+            # Use force-with-lease to avoid overwriting unexpected remote changes
+            git push --force-with-lease --set-upstream origin "$branch"
+          fi
+
           echo "CATALOG_BRANCH=$branch" >> "$GITHUB_ENV"
 
       - name: Open pull request
